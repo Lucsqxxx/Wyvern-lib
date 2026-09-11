@@ -24,6 +24,49 @@ Wyvern is a generic UI library. The included Sakura demo is an application built
 - No executor-specific APIs required
 - No remote code loading
 
+
+## Loading Methods
+
+### 1. ModuleScript (development / Studio)
+
+```lua
+local Wyvern = require(path.to.init)
+```
+
+### 2. Standalone / loadstring (client runtimes)
+
+A single-file build is published in `dist/Wyvern.lua`.
+
+```lua
+-- When you already have the source string:
+local Wyvern = loadstring(wyvernSource)()
+
+-- Or when the runtime provides HttpGet (optional):
+-- local Wyvern = loadstring(game:HttpGet("https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/dist/Wyvern.lua"))()
+
+local Window = Wyvern:CreateWindow({
+	Name = "My UI",
+	Version = "v1.0.0",
+})
+```
+
+Rebuild the standalone file after changing source:
+
+```bash
+python3 tools/build_standalone.py
+```
+
+The core library does **not** depend on any specific executor API. HttpGet is only used by *your* loader script if you choose to fetch the file remotely.
+
+### 3. Example demo
+
+```lua
+require(path.to.examples.Main)
+-- or
+require(path.to.examples.Loader)
+```
+
+
 ## Installation
 
 1. Place this repository (or the library root) into your place (e.g. under `ReplicatedStorage` or a client folder).

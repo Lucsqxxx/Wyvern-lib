@@ -3,6 +3,10 @@
 ## v1.0.0 — 2026-09-11
 
 ### Added
+- Standalone `dist/Wyvern.lua` for loadstring / client distribution
+- Reproducible build: `tools/build_standalone.py`
+- Loadstring-oriented documentation
+
 - Proper single-select Dropdown with Open/Close/Add/Remove/Refresh
 - MultiDropdown with multi-select, Select/Deselect
 - Notification / toast system (`Window:Notify` / `Wyvern:Notify`)
