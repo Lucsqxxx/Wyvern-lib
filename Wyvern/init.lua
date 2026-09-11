@@ -65,4 +65,20 @@ end
 -- Convenience export
 Wyvern.Theme = Theme
 
+-- Convenience: notify through the most recently created window if available
+local _lastWindow = nil
+local _origCreate = Wyvern.CreateWindow
+function Wyvern:CreateWindow(config)
+	local win = _origCreate(self, config)
+	_lastWindow = win
+	return win
+end
+
+function Wyvern:Notify(config)
+	if _lastWindow and not _lastWindow._destroyed then
+		return _lastWindow:Notify(config)
+	end
+	warn("[Wyvern] Notify: no active window")
+end
+
 return Wyvern

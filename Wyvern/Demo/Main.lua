@@ -186,6 +186,92 @@ HeadCarry:CreateSlider({
 	end,
 })
 
+
+------------------------------------------------------------
+-- API SHOWCASE TAB
+------------------------------------------------------------
+local Showcase = Window:CreateTab({
+	Name = "Showcase",
+	Icon = "settings",
+})
+
+local Controls = Showcase:CreateSection({
+	Name = "Controls",
+	Column = "Left",
+})
+
+Controls:CreateDropdown({
+	Name = "Mode",
+	Options = { "Casual", "Competitive", "Custom" },
+	Default = "Casual",
+	Callback = function(v)
+		print("[Showcase] Mode:", v)
+		Window:Notify({ Title = "Mode", Content = "Selected " .. tostring(v), Duration = 2 })
+	end,
+})
+
+Controls:CreateMultiDropdown({
+	Name = "Features",
+	Options = { "ESP", "Tracer", "Radar", "Alert" },
+	Default = { "ESP" },
+	Callback = function(values)
+		print("[Showcase] Features:", table.concat(values, ", "))
+	end,
+})
+
+Controls:CreateInput({
+	Name = "Username",
+	Placeholder = "Enter name...",
+	Default = "",
+	Callback = function(v)
+		print("[Showcase] Username:", v)
+	end,
+})
+
+Controls:CreateColorPicker({
+	Name = "Accent",
+	Default = Color3.fromRGB(255, 110, 175),
+	Callback = function(c)
+		print("[Showcase] Color changed")
+	end,
+})
+
+local Actions = Showcase:CreateSection({
+	Name = "Actions",
+	Column = "Right",
+})
+
+Actions:CreateButton({
+	Name = "Notify",
+	Callback = function()
+		Window:Notify({
+			Title = "Wyvern",
+			Content = "This is a toast notification.",
+			Duration = 3,
+		})
+	end,
+})
+
+Actions:CreateButton({
+	Name = "Toggle Title",
+	Callback = function()
+		Window:SetTitle("Sakura " .. tostring(math.random(1, 99)))
+	end,
+})
+
+local t = Actions:CreateToggle({
+	Name = "Demo Toggle",
+	Default = false,
+})
+Actions:CreateButton({
+	Name = "Programmatic Toggle",
+	Callback = function()
+		t:Toggle()
+	end,
+})
+
+print("[Wyvern] Showcase tab ready — try Dropdown, MultiDropdown, Notify.")
+
 print("[Wyvern] Sakura demo loaded successfully.")
 print("Search for 'header' or 'react' to test the search system.")
 

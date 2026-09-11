@@ -13,6 +13,7 @@ local Input = require(script.Parent.Input)
 local Animation = require(script.Parent.Animation)
 local Constants = require(script.Parent.Constants)
 local Icons = require(script.Parent.Parent.Icons.Registry)
+local Notification = require(script.Parent.Notification)
 
 local Window = {}
 Window.__index = Window
@@ -412,6 +413,16 @@ function Window.new(config, theme, scale)
 	}
 
 	self._maid:Give(main)
+
+	-- Notification manager
+	self._notifications = Notification.new(screenGui, theme)
+	self._maid:Give(function()
+		if self._notifications then
+			self._notifications:Destroy()
+			self._notifications = nil
+		end
+	end)
+
 	ActiveWindows[self._name] = self
 	return self
 end
@@ -519,6 +530,46 @@ function Window:SetScale(scale)
 	if self._uiScale then
 		self._uiScale.Scale = self._scale
 	end
+end
+
+
+function Window:Notify(config)
+	if self._destroyed or not self._notifications then return end
+	return self._notifications:Notify(config)
+end
+
+function Window:SetTitle(title)
+	if self._destroyed then return end
+	self._name = tostring(title or self._name)
+	local titleLabel = self._header and self._header:FindFirstChild("Title")
+	if titleLabel then
+		titleLabel.Text = self._name
+	end
+end
+
+function Window:SetVersion(version)
+	if self._destroyed then return end
+	self._version = tostring(version or self._version)
+	local ver = self._header and self._header:FindFirstChild("Version")
+	if ver then
+		ver.Text = self._version
+	end
+end
+
+function Window:GetTabs()
+	return self._tabs
+end
+
+function Window:GetCurrentTab()
+	return self._currentTab
+end
+
+function Window:IsVisible()
+	return self._visible
+end
+
+function Window:IsMinimized()
+	return self._minimized
 end
 
 function Window:Destroy()

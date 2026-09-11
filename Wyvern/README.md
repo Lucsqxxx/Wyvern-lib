@@ -121,6 +121,10 @@ Section:CreateKeybind({
 | `:Minimize()` / `:Restore()` | Collapse / expand content |
 | `:SetVisible(boolean)` | Show / hide |
 | `:SetScale(number)` | Per-window scale |
+| `:Notify(config)` | Toast notification |
+| `:SetTitle(text)` | Change window title |
+| `:GetTabs()` / `:GetCurrentTab()` | Tab access |
+| `:IsVisible()` / `:IsMinimized()` | State queries |
 | `:Destroy()` | Full cleanup |
 
 ### Tab
@@ -141,7 +145,9 @@ Section:CreateKeybind({
 | `:CreateSlider(config)` | Numeric slider |
 | `:CreateKeybind(config)` | Rebindable key |
 | `:CreateLabel(config)` | Description text |
-| `:CreateDropdown(config)` | Simple option cycle |
+| `:CreateDropdown(config)` | Single-select popup dropdown |
+| `:CreateMultiDropdown(config)` | Multi-select dropdown |
+| `:CreateInput(config)` | Alias for Textbox |
 | `:CreateTextbox(config)` | Text input |
 | `:CreateColorPicker(config)` | Color swatch cycle |
 | `:CreateDivider()` | Horizontal line |

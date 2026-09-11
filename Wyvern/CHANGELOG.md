@@ -3,6 +3,13 @@
 ## v1.0.0 — 2026-09-11
 
 ### Added
+- Proper single-select Dropdown with Open/Close/Add/Remove/Refresh
+- MultiDropdown with multi-select, Select/Deselect
+- Notification / toast system (`Window:Notify` / `Wyvern:Notify`)
+- Window:SetTitle, SetVersion, GetTabs, GetCurrentTab, IsVisible, IsMinimized
+- Toggle:Toggle / Reset; Slider:SetMin / SetMax / SetIncrement / Reset
+- Section:CreateInput alias, CreateMultiDropdown
+- Expanded Showcase demo tab
 - Modular Wyvern UI Lib architecture (Core, Components, Themes, Icons, Demo)
 - Window with drag, minimize/restore, close, search bar, bottom + secondary navigation
 - Tab system with two-column layout and scrolling

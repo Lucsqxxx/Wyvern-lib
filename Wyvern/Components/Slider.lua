@@ -211,4 +211,22 @@ function Slider:SetEnabled(enabled)
 	self._label.TextColor3 = enabled and self._theme:Get("Text") or self._theme:Get("TextDisabled")
 end
 
+
+function Slider:SetMin(min)
+	self:SetRange(min, self._max)
+end
+
+function Slider:SetMax(max)
+	self:SetRange(self._min, max)
+end
+
+function Slider:SetIncrement(inc)
+	self._increment = tonumber(inc) or 1
+	self:Set(self._value)
+end
+
+function Slider:Reset()
+	self:Set(self._min)
+end
+
 return Slider

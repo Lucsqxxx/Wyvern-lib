@@ -1,13 +1,11 @@
--- Dropdown.lua
--- First-class single-select dropdown with popup list.
+-- MultiDropdown.lua
+-- Multi-select dropdown.
 
-local UserInputService = game:GetService("UserInputService")
 local Component = require(script.Parent.Parent.Core.Component)
-local Animation = require(script.Parent.Parent.Core.Animation)
 local Constants = require(script.Parent.Parent.Core.Constants)
 
-local Dropdown = setmetatable({}, { __index = Component })
-Dropdown.__index = Dropdown
+local MultiDropdown = setmetatable({}, { __index = Component })
+MultiDropdown.__index = MultiDropdown
 
 local function deepCopy(t)
 	local n = {}
@@ -17,35 +15,47 @@ local function deepCopy(t)
 	return n
 end
 
-function Dropdown.new(config, parent, theme)
+local function copySet(t)
+	local n = {}
+	for _, v in ipairs(t or {}) do
+		n[v] = true
+	end
+	return n
+end
+
+local function setToList(s)
+	local n = {}
+	for k in pairs(s) do
+		table.insert(n, k)
+	end
+	table.sort(n, function(a, b) return tostring(a) < tostring(b) end)
+	return n
+end
+
+function MultiDropdown.new(config, parent, theme)
 	config = config or {}
-	local self = setmetatable(Component.new(config), Dropdown)
+	local self = setmetatable(Component.new(config), MultiDropdown)
 	self._theme = theme
 	self._options = deepCopy(config.Options or {})
-	self._value = config.Default
-	if self._value == nil and #self._options > 0 then
-		self._value = self._options[1]
-	end
+	self._selected = copySet(config.Default or {})
 	self._open = false
 	self._optionButtons = {}
 
 	local container = Instance.new("Frame")
-	container.Name = "Dropdown_" .. (config.Name or "Dropdown")
+	container.Name = "MultiDropdown_" .. (config.Name or "Multi")
 	container.BackgroundTransparency = 1
 	container.Size = UDim2.new(1, 0, 0, Constants.ControlHeight)
-	container.ClipsDescendants = false
 	container.Parent = parent
 	self._instance = container
 
 	local label = Instance.new("TextLabel")
-	label.Name = "Label"
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.new(0.42, 0, 1, 0)
 	label.Font = Enum.Font.Gotham
 	label.TextSize = Constants.LabelSize
 	label.TextColor3 = theme:Get("Text")
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Text = config.Name or "Dropdown"
+	label.Text = config.Name or "Multi"
 	label.Parent = container
 	self._label = label
 
@@ -64,14 +74,7 @@ function Dropdown.new(config, parent, theme)
 	corner.CornerRadius = UDim.new(0, 5)
 	corner.Parent = box
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = theme:Get("Border")
-	stroke.Thickness = 1
-	stroke.Transparency = 0.45
-	stroke.Parent = box
-
 	local text = Instance.new("TextLabel")
-	text.Name = "Value"
 	text.BackgroundTransparency = 1
 	text.Size = UDim2.new(1, -22, 1, 0)
 	text.Position = UDim2.new(0, 6, 0, 0)
@@ -80,12 +83,11 @@ function Dropdown.new(config, parent, theme)
 	text.TextColor3 = theme:Get("Text")
 	text.TextXAlignment = Enum.TextXAlignment.Left
 	text.TextTruncate = Enum.TextTruncate.AtEnd
-	text.Text = tostring(self._value or "")
+	text.Text = self:_displayText()
 	text.Parent = box
 	self._text = text
 
 	local arrow = Instance.new("TextLabel")
-	arrow.Name = "Arrow"
 	arrow.BackgroundTransparency = 1
 	arrow.Size = UDim2.new(0, 16, 1, 0)
 	arrow.Position = UDim2.new(1, -18, 0, 0)
@@ -96,7 +98,6 @@ function Dropdown.new(config, parent, theme)
 	arrow.Parent = box
 	self._arrow = arrow
 
-	-- Popup list (parented to box so it follows)
 	local popup = Instance.new("Frame")
 	popup.Name = "Popup"
 	popup.BackgroundColor3 = theme:Get("Surface")
@@ -113,21 +114,13 @@ function Dropdown.new(config, parent, theme)
 	popupCorner.CornerRadius = UDim.new(0, 6)
 	popupCorner.Parent = popup
 
-	local popupStroke = Instance.new("UIStroke")
-	popupStroke.Color = theme:Get("Border")
-	popupStroke.Thickness = 1
-	popupStroke.Transparency = 0.3
-	popupStroke.Parent = popup
-
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name = "List"
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.Size = UDim2.new(1, 0, 1, 0)
 	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.ScrollBarThickness = 3
-	scroll.ScrollBarImageColor3 = theme:Get("Border")
 	scroll.ZIndex = 51
 	scroll.Parent = popup
 	self._scroll = scroll
@@ -148,31 +141,21 @@ function Dropdown.new(config, parent, theme)
 
 	self._maid:Give(box.MouseButton1Click:Connect(function()
 		if not self._enabled or self._destroyed then return end
-		if self._open then
-			self:Close()
-		else
-			self:Open()
-		end
-	end))
-
-	-- Close when clicking elsewhere
-	self._maid:Give(UserInputService.InputBegan:Connect(function(input)
-		if not self._open or self._destroyed then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			-- simple close; more precise hit-test can be added later
-			task.defer(function()
-				if self._open and not self._destroyed then
-					-- keep open only if still interacting with popup; for simplicity close after short delay is handled by option click
-				end
-			end)
-		end
+		if self._open then self:Close() else self:Open() end
 	end))
 
 	self._maid:Give(container)
 	return self
 end
 
-function Dropdown:_rebuildOptions()
+function MultiDropdown:_displayText()
+	local list = setToList(self._selected)
+	if #list == 0 then return "None" end
+	if #list <= 2 then return table.concat(list, ", ") end
+	return tostring(#list) .. " selected"
+end
+
+function MultiDropdown:_rebuildOptions()
 	for _, btn in ipairs(self._optionButtons) do
 		pcall(function() btn:Destroy() end)
 	end
@@ -184,11 +167,11 @@ function Dropdown:_rebuildOptions()
 	self._popup.Size = UDim2.new(1, 0, 0, maxVisible * (itemH + 2) + 10)
 
 	for i, opt in ipairs(self._options) do
+		local selected = self._selected[opt] == true
 		local btn = Instance.new("TextButton")
-		btn.Name = "Opt_" .. i
 		btn.Size = UDim2.new(1, 0, 0, itemH)
-		btn.BackgroundColor3 = (opt == self._value) and theme:Get("Accent") or theme:Get("SurfaceSecondary")
-		btn.BackgroundTransparency = (opt == self._value) and 0.15 or 0.3
+		btn.BackgroundColor3 = selected and theme:Get("Accent") or theme:Get("SurfaceSecondary")
+		btn.BackgroundTransparency = selected and 0.15 or 0.3
 		btn.BorderSizePixel = 0
 		btn.AutoButtonColor = false
 		btn.Text = ""
@@ -208,21 +191,31 @@ function Dropdown:_rebuildOptions()
 		t.TextSize = 11
 		t.TextColor3 = theme:Get("Text")
 		t.TextXAlignment = Enum.TextXAlignment.Left
-		t.Text = tostring(opt)
+		t.Text = (selected and "✓ " or "   ") .. tostring(opt)
 		t.ZIndex = 53
 		t.Parent = btn
 
 		self._maid:Give(btn.MouseButton1Click:Connect(function()
 			if self._destroyed then return end
-			self:Set(opt)
-			self:Close()
+			if self._selected[opt] then
+				self._selected[opt] = nil
+			else
+				self._selected[opt] = true
+			end
+			self._text.Text = self:_displayText()
+			self:_rebuildOptions()
+			local values = setToList(self._selected)
+			self.ValueChanged:Fire(values)
+			for _, cb in ipairs(self._callbacks) do
+				task.spawn(cb, values)
+			end
 		end))
 
 		table.insert(self._optionButtons, btn)
 	end
 end
 
-function Dropdown:Open()
+function MultiDropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
 	self._open = true
 	self._popup.Visible = true
@@ -230,87 +223,83 @@ function Dropdown:Open()
 	self:_rebuildOptions()
 end
 
-function Dropdown:Close()
+function MultiDropdown:Close()
 	if not self._open then return end
 	self._open = false
 	self._popup.Visible = false
 	self._arrow.Text = "▼"
 end
 
-function Dropdown:Get()
-	return self._value
+function MultiDropdown:Get()
+	return setToList(self._selected)
 end
 
-function Dropdown:Set(value)
+function MultiDropdown:Set(values)
 	if self._destroyed then return end
-	self._value = value
+	self._selected = copySet(values or {})
 	if self._text then
-		self._text.Text = tostring(value or "")
+		self._text.Text = self:_displayText()
 	end
-	self:_rebuildOptions()
-	self.ValueChanged:Fire(value)
-	for _, cb in ipairs(self._callbacks) do
-		task.spawn(cb, value)
-	end
-end
-
-function Dropdown:Select(value)
-	self:Set(value)
-end
-
-function Dropdown:Add(option)
-	if type(option) ~= "string" and type(option) ~= "number" then return end
-	table.insert(self._options, option)
 	if self._open then
 		self:_rebuildOptions()
 	end
-end
-
-function Dropdown:Remove(option)
-	local idx = table.find(self._options, option)
-	if idx then
-		table.remove(self._options, idx)
-		if self._value == option then
-			self:Set(self._options[1])
-		elseif self._open then
-			self:_rebuildOptions()
-		end
+	local list = setToList(self._selected)
+	self.ValueChanged:Fire(list)
+	for _, cb in ipairs(self._callbacks) do
+		task.spawn(cb, list)
 	end
 end
 
-function Dropdown:Clear()
-	table.clear(self._options)
-	self:Set(nil)
+function MultiDropdown:Select(option)
+	self._selected[option] = true
+	self:Set(setToList(self._selected))
+end
+
+function MultiDropdown:Deselect(option)
+	self._selected[option] = nil
+	self:Set(setToList(self._selected))
+end
+
+function MultiDropdown:Add(option)
+	table.insert(self._options, option)
+	if self._open then self:_rebuildOptions() end
+end
+
+function MultiDropdown:Remove(option)
+	local idx = table.find(self._options, option)
+	if idx then table.remove(self._options, idx) end
+	self._selected[option] = nil
+	if self._text then self._text.Text = self:_displayText() end
+	if self._open then self:_rebuildOptions() end
+end
+
+function MultiDropdown:Clear()
+	table.clear(self._selected)
+	self:Set({})
 	self:Close()
 end
 
-function Dropdown:Refresh(options)
+function MultiDropdown:Refresh(options)
 	if type(options) ~= "table" then return end
 	self._options = deepCopy(options)
-	if not table.find(self._options, self._value) then
-		self._value = self._options[1]
+	-- keep only still-valid selections
+	local nextSel = {}
+	for _, o in ipairs(self._options) do
+		if self._selected[o] then nextSel[o] = true end
 	end
-	if self._text then
-		self._text.Text = tostring(self._value or "")
-	end
-	if self._open then
-		self:_rebuildOptions()
-	end
+	self._selected = nextSel
+	if self._text then self._text.Text = self:_displayText() end
+	if self._open then self:_rebuildOptions() end
 end
 
-function Dropdown:SetEnabled(enabled)
+function MultiDropdown:SetEnabled(enabled)
 	self._enabled = enabled and true or false
-	if self._label then
-		self._label.TextColor3 = self._enabled and self._theme:Get("Text") or self._theme:Get("TextDisabled")
-	end
-	if not self._enabled then
-		self:Close()
-	end
+	if not self._enabled then self:Close() end
 end
 
-function Dropdown:Destroy()
+function MultiDropdown:Destroy()
 	self:Close()
 	Component.Destroy(self)
 end
 
-return Dropdown
+return MultiDropdown

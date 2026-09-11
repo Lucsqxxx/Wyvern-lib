@@ -100,9 +100,29 @@ function Toggle:Set(value)
 end
 
 function Toggle:SetEnabled(enabled)
-	self._enabled = enabled
-	self._label.TextColor3 = enabled and self._theme:Get("Text") or self._theme:Get("TextDisabled")
-	self._switch.BackgroundTransparency = enabled and 0 or 0.45
+	self._enabled = enabled and true or false
+	if self._label then
+		self._label.TextColor3 = self._enabled and self._theme:Get("Text") or self._theme:Get("TextDisabled")
+	end
+	if self._switch then
+		self._switch.BackgroundTransparency = self._enabled and 0 or 0.45
+	end
+end
+
+function Toggle:Toggle()
+	self:Set(not self._value)
+end
+
+function Toggle:Reset()
+	self:Set(false)
 end
 
 return Toggle
+
+function Toggle:Toggle()
+	self:Set(not self._value)
+end
+
+function Toggle:Reset()
+	self:Set(false)
+end

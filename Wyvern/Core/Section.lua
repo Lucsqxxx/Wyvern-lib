@@ -10,6 +10,7 @@ local Slider = require(script.Parent.Parent.Components.Slider)
 local Keybind = require(script.Parent.Parent.Components.Keybind)
 local Label = require(script.Parent.Parent.Components.Label)
 local Dropdown = require(script.Parent.Parent.Components.Dropdown)
+local MultiDropdown = require(script.Parent.Parent.Components.MultiDropdown)
 local Textbox = require(script.Parent.Parent.Components.Textbox)
 local ColorPicker = require(script.Parent.Parent.Components.ColorPicker)
 local Divider = require(script.Parent.Parent.Components.Divider)
@@ -119,10 +120,21 @@ function Section:CreateDropdown(config)
 	return self:_addComponent(comp)
 end
 
+function Section:CreateMultiDropdown(config)
+	local comp = MultiDropdown.new(config, self._instance, self._theme)
+	comp._instance.LayoutOrder = #self._components + 1
+	return self:_addComponent(comp)
+end
+
 function Section:CreateTextbox(config)
 	local comp = Textbox.new(config, self._instance, self._theme)
 	comp._instance.LayoutOrder = #self._components + 1
 	return self:_addComponent(comp)
+end
+
+-- Alias for developer expectation
+function Section:CreateInput(config)
+	return self:CreateTextbox(config)
 end
 
 function Section:CreateColorPicker(config)
