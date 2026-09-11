@@ -1,0 +1,31 @@
+# Roblox / Rojo
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+sourcemap.json
+*.lock
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+
+# Secrets (never commit)
+.env
+.env.*
+*.pem
+*.key
+secrets/
+credentials/
+
+# Temp / build
+tmp/
+temp/
+*.log
+*.cache
