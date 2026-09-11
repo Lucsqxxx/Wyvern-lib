@@ -2,6 +2,36 @@
 
 **Version:** v1.0.0
 
+## Quick start (loadstring)
+
+```lua
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/dist/Wyvern.lua"))()
+
+local Window = library:CreateWindow({
+	Name = "Wyvern",
+})
+
+local Tab = Window:CreateTab({
+	Name = "Main",
+})
+
+local Section = Tab:CreateSection({
+	Name = "Demo",
+})
+
+Section:CreateToggle({
+	Name = "Enabled",
+	Default = true,
+	Callback = function(value)
+		print(value)
+	end,
+})
+```
+
+`dist/Wyvern.lua` is self-contained and returns the library table. No extra loader is required.
+
+
+
 A production-quality, reusable Roblox Luau UI framework for polished floating interfaces.
 
 Wyvern is a generic UI library. The included Sakura demo is an application built *on top of* the library and does not hard-code feature logic into the framework core.

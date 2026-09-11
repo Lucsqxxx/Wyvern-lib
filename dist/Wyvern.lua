@@ -3,12 +3,9 @@
 	Standalone distribution for loadstring / client environments.
 	Version: 1.0.0
 
-	Usage:
-		local Wyvern = loadstring(source)()
-		local Window = Wyvern:CreateWindow({ Name = "UI", Version = "v1.0.0" })
-
-	Or from HttpGet (when available in the runtime):
-		local Wyvern = loadstring(game:HttpGet("RAW_URL_TO_dist/Wyvern.lua"))()
+	Usage (exact):
+		local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/dist/Wyvern.lua"))()
+		local Window = library:CreateWindow({ Name = "Wyvern" })
 ]]
 
 local __wyvern_modules = {}
