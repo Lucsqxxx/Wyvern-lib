@@ -26,7 +26,7 @@ Wyvern is a generic UI library. The included Sakura demo is an application built
 
 ## Installation
 
-1. Place the `Wyvern` folder into your place (e.g. under `ReplicatedStorage` or a client folder).
+1. Place this repository (or the library root) into your place (e.g. under `ReplicatedStorage` or a client folder).
 2. From a LocalScript:
 
 ```lua
@@ -37,9 +37,9 @@ For the included demo:
 
 ```lua
 -- From a LocalScript that can see the Demo folder
-require(path.to.Wyvern.Demo.Loader)
+require(path.to.examples.Loader)
 -- or
-require(path.to.Wyvern.Demo.Main)
+require(path.to.examples.Main)
 ```
 
 ## Basic Usage
@@ -201,22 +201,24 @@ Destroys all Instances, connections, signals, search registrations, and keybind 
 ## Project Structure
 
 ```
-Wyvern/
-├── init.lua
+/
+├── init.lua              # Library entry point
 ├── README.md
 ├── CHANGELOG.md
 ├── Core/
 │   ├── Component.lua, Window.lua, Tab.lua, Section.lua
-│   ├── Theme.lua, Search.lua, Input.lua
+│   ├── Theme.lua, Search.lua, Input.lua, Notification.lua
 │   ├── Animation.lua, Signal.lua, Maid.lua, Constants.lua
 ├── Components/
 │   ├── Button, Toggle, Slider, Keybind, Label
-│   ├── Dropdown, Textbox, ColorPicker, Divider
-├── Icons/Registry.lua
-├── Themes/Sakura.lua
-└── Demo/
-    ├── Main.lua      -- Sakura reference recreation
-    └── Loader.lua    -- Safe client bootstrap
+│   ├── Dropdown, MultiDropdown, Textbox, ColorPicker, Divider
+├── Icons/
+│   └── Registry.lua
+├── Themes/
+│   └── Sakura.lua
+└── examples/
+    ├── Main.lua          # Sakura + Showcase demo
+    └── Loader.lua        # Safe client bootstrap
 ```
 
 ## Compatibility Notes
