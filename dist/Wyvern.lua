@@ -1161,14 +1161,6 @@ function Toggle:Reset()
 end
 
 return Toggle
-
-function Toggle:Toggle()
-	self:Set(not self._value)
-end
-
-function Toggle:Reset()
-	self:Set(false)
-end
 end)
 
 -- ===== END Components.Toggle =====
