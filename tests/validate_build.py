@@ -137,6 +137,26 @@ for api in ["CreateButton", "CreateToggle", "CreateSlider", "CreateDropdown",
     else:
         fail(f"public API missing {api}")
 
+
+# Icon registry completeness
+required_icons = ["Search","Eye","Settings","Check","Close","Minimize","Home","User","Checklist","Back"]
+renderer = (ROOT / "Icons" / "Renderer.lua").read_text() if (ROOT / "Icons" / "Renderer.lua").exists() else ""
+for name in required_icons:
+    if f"builders.{name}" in renderer or f'["{name}"]' in renderer or f"function builders.{name}" in renderer:
+        ok(f"icon builder {name}")
+    else:
+        # aliases may exist
+        if name in renderer:
+            ok(f"icon ref {name}")
+        else:
+            fail(f"missing icon builder {name}")
+# no primary unicode icon path in Toggle
+toggle = (ROOT / "Components" / "Toggle.lua").read_text()
+if "✓" in toggle or "✔" in toggle:
+    fail("Toggle still uses unicode check")
+else:
+    ok("Toggle no unicode check")
+
 print()
 print(f"Results: {len(passes)} PASS, {len(errors)} FAIL")
 sys.exit(1 if errors else 0)
