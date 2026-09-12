@@ -47,6 +47,7 @@ function MultiDropdown.new(config, parent, theme)
 	container.Name = "MultiDropdown_" .. (config.Name or "Multi")
 	container.BackgroundTransparency = 1
 	container.Size = UDim2.new(1, 0, 0, Constants.ControlHeight)
+	container.ClipsDescendants = true
 	container.Parent = parent
 	self._instance = container
 
@@ -154,7 +155,8 @@ end
 function MultiDropdown:_displayText()
 	local list = setToList(self._selected)
 	if #list == 0 then return "None" end
-	if #list <= 2 then return table.concat(list, ", ") end
+	if #list == 1 then return tostring(list[1]) end
+	if #list == 2 then return tostring(list[1]) .. ", " .. tostring(list[2]) end
 	return tostring(#list) .. " selected"
 end
 

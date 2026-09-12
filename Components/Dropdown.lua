@@ -46,6 +46,7 @@ function Dropdown.new(config, parent, theme)
 	label.TextSize = Constants.LabelSize
 	label.TextColor3 = theme:Get("Text")
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = config.Name or "Dropdown"
 	label.Parent = container
 	self._label = label

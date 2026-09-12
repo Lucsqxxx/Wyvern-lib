@@ -31,6 +31,7 @@ function Tab.new(config, window, theme, search, inputManager)
 	content.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	content.ScrollBarThickness = 3
 	content.ScrollBarImageColor3 = theme:Get("Border")
+	content.ClipsDescendants = true
 	content.Visible = false
 	content.Parent = window._contentContainer
 	self._content = content
@@ -46,8 +47,10 @@ function Tab.new(config, window, theme, search, inputManager)
 	local columns = Instance.new("Frame")
 	columns.Name = "Columns"
 	columns.BackgroundTransparency = 1
+	-- Fill scroll width only; never grow past content viewport
 	columns.Size = UDim2.new(1, 0, 0, 0)
 	columns.AutomaticSize = Enum.AutomaticSize.Y
+	columns.ClipsDescendants = true
 	columns.Parent = content
 	self._columns = columns
 
@@ -56,6 +59,7 @@ function Tab.new(config, window, theme, search, inputManager)
 	left.BackgroundTransparency = 1
 	left.Size = UDim2.new(0.5, -6, 0, 0)
 	left.AutomaticSize = Enum.AutomaticSize.Y
+	left.ClipsDescendants = true
 	left.Parent = columns
 	self._left = left
 
@@ -70,6 +74,7 @@ function Tab.new(config, window, theme, search, inputManager)
 	right.Size = UDim2.new(0.5, -6, 0, 0)
 	right.Position = UDim2.new(0.5, 6, 0, 0)
 	right.AutomaticSize = Enum.AutomaticSize.Y
+	right.ClipsDescendants = true
 	right.Parent = columns
 	self._right = right
 

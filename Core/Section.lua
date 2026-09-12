@@ -32,8 +32,9 @@ function Section.new(config, parent, theme, search, inputManager)
 	card.Name = "Section_" .. self._name
 	card.BackgroundColor3 = theme:Get("Surface")
 	card.BorderSizePixel = 0
-	card.Size = UDim2.new(1, 0, 0, 0) -- auto size later
+	card.Size = UDim2.new(1, 0, 0, 0)
 	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.ClipsDescendants = true
 	card.Parent = parent
 	self._instance = card
 
@@ -67,6 +68,7 @@ function Section.new(config, parent, theme, search, inputManager)
 	title.TextSize = Constants.SectionTitleSize
 	title.TextColor3 = theme:Get("Text")
 	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextTruncate = Enum.TextTruncate.AtEnd
 	title.Text = self._name
 	title.LayoutOrder = 0
 	title.Parent = card

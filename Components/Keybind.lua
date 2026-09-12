@@ -67,6 +67,7 @@ function Keybind.new(config, parent, theme, inputManager)
 	keyText.Font = Enum.Font.GothamMedium
 	keyText.TextSize = 11
 	keyText.TextColor3 = theme:Get("Text")
+	keyText.TextTruncate = Enum.TextTruncate.AtEnd
 	keyText.Text = keyCodeToString(self._value)
 	keyText.Parent = keyBox
 	self._keyText = keyText

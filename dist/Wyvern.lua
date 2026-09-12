@@ -2332,6 +2332,7 @@ function Keybind.new(config, parent, theme, inputManager)
 	keyText.Font = Enum.Font.GothamMedium
 	keyText.TextSize = 11
 	keyText.TextColor3 = theme:Get("Text")
+	keyText.TextTruncate = Enum.TextTruncate.AtEnd
 	keyText.Text = keyCodeToString(self._value)
 	keyText.Parent = keyBox
 	self._keyText = keyText
@@ -2534,6 +2535,7 @@ function Dropdown.new(config, parent, theme)
 	label.TextSize = Constants.LabelSize
 	label.TextColor3 = theme:Get("Text")
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = config.Name or "Dropdown"
 	label.Parent = container
 	self._label = label
@@ -2924,6 +2926,7 @@ function MultiDropdown.new(config, parent, theme)
 	container.Name = "MultiDropdown_" .. (config.Name or "Multi")
 	container.BackgroundTransparency = 1
 	container.Size = UDim2.new(1, 0, 0, Constants.ControlHeight)
+	container.ClipsDescendants = true
 	container.Parent = parent
 	self._instance = container
 
@@ -3031,7 +3034,8 @@ end
 function MultiDropdown:_displayText()
 	local list = setToList(self._selected)
 	if #list == 0 then return "None" end
-	if #list <= 2 then return table.concat(list, ", ") end
+	if #list == 1 then return tostring(list[1]) end
+	if #list == 2 then return tostring(list[1]) .. ", " .. tostring(list[2]) end
 	return tostring(#list) .. " selected"
 end
 
@@ -3761,8 +3765,9 @@ function Section.new(config, parent, theme, search, inputManager)
 	card.Name = "Section_" .. self._name
 	card.BackgroundColor3 = theme:Get("Surface")
 	card.BorderSizePixel = 0
-	card.Size = UDim2.new(1, 0, 0, 0) -- auto size later
+	card.Size = UDim2.new(1, 0, 0, 0)
 	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.ClipsDescendants = true
 	card.Parent = parent
 	self._instance = card
 
@@ -3796,6 +3801,7 @@ function Section.new(config, parent, theme, search, inputManager)
 	title.TextSize = Constants.SectionTitleSize
 	title.TextColor3 = theme:Get("Text")
 	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextTruncate = Enum.TextTruncate.AtEnd
 	title.Text = self._name
 	title.LayoutOrder = 0
 	title.Parent = card
@@ -3992,6 +3998,7 @@ function Tab.new(config, window, theme, search, inputManager)
 	content.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	content.ScrollBarThickness = 3
 	content.ScrollBarImageColor3 = theme:Get("Border")
+	content.ClipsDescendants = true
 	content.Visible = false
 	content.Parent = window._contentContainer
 	self._content = content
@@ -4007,8 +4014,10 @@ function Tab.new(config, window, theme, search, inputManager)
 	local columns = Instance.new("Frame")
 	columns.Name = "Columns"
 	columns.BackgroundTransparency = 1
+	-- Fill scroll width only; never grow past content viewport
 	columns.Size = UDim2.new(1, 0, 0, 0)
 	columns.AutomaticSize = Enum.AutomaticSize.Y
+	columns.ClipsDescendants = true
 	columns.Parent = content
 	self._columns = columns
 
@@ -4017,6 +4026,7 @@ function Tab.new(config, window, theme, search, inputManager)
 	left.BackgroundTransparency = 1
 	left.Size = UDim2.new(0.5, -6, 0, 0)
 	left.AutomaticSize = Enum.AutomaticSize.Y
+	left.ClipsDescendants = true
 	left.Parent = columns
 	self._left = left
 
@@ -4031,6 +4041,7 @@ function Tab.new(config, window, theme, search, inputManager)
 	right.Size = UDim2.new(0.5, -6, 0, 0)
 	right.Position = UDim2.new(0.5, 6, 0, 0)
 	right.AutomaticSize = Enum.AutomaticSize.Y
+	right.ClipsDescendants = true
 	right.Parent = columns
 	self._right = right
 
