@@ -145,4 +145,21 @@ function Component:Destroy()
 	setmetatable(self, nil)
 end
 
+function Component:GetValue(...)
+	if self.Get then return self:Get(...) end
+	return self._value
+end
+
+function Component:SetValue(...)
+	if self.Set then return self:Set(...) end
+end
+
+function Component:GetState(...)
+	return self:GetValue(...)
+end
+
+function Component:SetState(...)
+	return self:SetValue(...)
+end
+
 return Component

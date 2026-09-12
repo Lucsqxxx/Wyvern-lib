@@ -156,3 +156,56 @@ function Notification:Destroy()
 end
 
 return Notification
+
+
+-- Library-level helper: creates a temporary ScreenGui toast stack if needed
+function Notification.Show(config, theme)
+	config = config or {}
+	local playerGui = nil
+	pcall(function()
+		local lp = game:GetService("Players").LocalPlayer
+		playerGui = lp and (lp:FindFirstChildOfClass("PlayerGui") or lp:WaitForChild("PlayerGui", 2))
+	end)
+	local parent = playerGui
+	if not parent then
+		pcall(function()
+			parent = game:GetService("CoreGui")
+		end)
+	end
+	if not parent then
+		warn("[Wyvern] Notify: no ParentGui available")
+		return
+	end
+	local holderName = "WyvernLibNotifications"
+	local holder = parent:FindFirstChild(holderName)
+	if not holder then
+		local sg = Instance.new("ScreenGui")
+		sg.Name = holderName
+		sg.ResetOnSpawn = false
+		sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		sg.DisplayOrder = 1000
+		pcall(function()
+			sg.Parent = parent
+		end)
+		holder = sg
+	end
+	local mgr = Notification.new(holder, theme or {
+		Get = function(_, k)
+			local defaults = {
+				Surface = Color3.fromRGB(30, 28, 40),
+				Border = Color3.fromRGB(60, 55, 75),
+				Text = Color3.fromRGB(230, 225, 240),
+				TextSecondary = Color3.fromRGB(160, 155, 175),
+				Accent = Color3.fromRGB(180, 120, 255),
+			}
+			return defaults[k] or Color3.new(1, 1, 1)
+		end,
+	})
+	-- adapt config keys
+	local adapted = {
+		Title = config.Title or config.title,
+		Content = config.Text or config.text or config.Content or config.Message,
+		Duration = config.Duration or config.duration,
+	}
+	return mgr:Notify(adapted)
+end

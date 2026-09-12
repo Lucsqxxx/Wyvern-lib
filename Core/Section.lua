@@ -14,6 +14,8 @@ local MultiDropdown = require(script.Parent.Parent.Components.MultiDropdown)
 local Textbox = require(script.Parent.Parent.Components.Textbox)
 local ColorPicker = require(script.Parent.Parent.Components.ColorPicker)
 local Divider = require(script.Parent.Parent.Components.Divider)
+local Feature = require(script.Parent.Parent.Components.Feature)
+local Flags = require(script.Parent.Flags)
 
 local Section = {}
 Section.__index = Section
@@ -210,6 +212,18 @@ function Section:CreateNotification(config)
 	-- Notifications are window-level; no-op section helper would be misleading
 	warn("[Wyvern] Use Window:Notify(...) for notifications")
 	return nil
+end
+
+function Section:CreateFeature(config)
+	config = config or {}
+	local feature = Feature.new(config, self._instance, self._theme, self._search, self._input)
+	table.insert(self._components, feature)
+	return feature
+end
+
+-- Reference-style alias
+function Section:create_module(config)
+	return self:CreateFeature(config)
 end
 
 function Section:SetVisible(visible)
