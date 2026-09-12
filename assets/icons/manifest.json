@@ -1,8 +1,8 @@
 {
   "sourceOfTruth": "assets/icons/*.png",
   "githubRawBase": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons",
-  "robloxUpload": "NOT_AVAILABLE_IN_CI",
-  "note": "Fill assetId with real rbxassetid:// after Creator upload. Never invent IDs.",
+  "robloxUpload": "PENDING_USER",
+  "note": "Fill assetId after Roblox Creator upload. Never invent IDs.",
   "icons": {
     "Back": {
       "file": "assets/icons/back.png",
@@ -136,6 +136,18 @@
       ],
       "mode": "RGBA"
     },
+    "Delete": {
+      "file": "assets/icons/delete.png",
+      "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/delete.png",
+      "assetId": null,
+      "verified": false,
+      "exists": true,
+      "dimensions": [
+        64,
+        64
+      ],
+      "mode": "RGBA"
+    },
     "DockAbout": {
       "file": "assets/icons/dock_about.png",
       "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/dock_about.png",
@@ -232,6 +244,18 @@
       ],
       "mode": "RGBA"
     },
+    "Favorite": {
+      "file": "assets/icons/favorite.png",
+      "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/favorite.png",
+      "assetId": null,
+      "verified": false,
+      "exists": true,
+      "dimensions": [
+        64,
+        64
+      ],
+      "mode": "RGBA"
+    },
     "Forward": {
       "file": "assets/icons/forward.png",
       "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/forward.png",
@@ -316,6 +340,30 @@
       ],
       "mode": "RGBA"
     },
+    "Link": {
+      "file": "assets/icons/link.png",
+      "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/link.png",
+      "assetId": null,
+      "verified": false,
+      "exists": true,
+      "dimensions": [
+        64,
+        64
+      ],
+      "mode": "RGBA"
+    },
+    "Lock": {
+      "file": "assets/icons/lock.png",
+      "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/lock.png",
+      "assetId": null,
+      "verified": false,
+      "exists": true,
+      "dimensions": [
+        64,
+        64
+      ],
+      "mode": "RGBA"
+    },
     "Maximize": {
       "file": "assets/icons/maximize.png",
       "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/maximize.png",
@@ -340,9 +388,33 @@
       ],
       "mode": "RGBA"
     },
+    "Minimized": {
+      "file": "assets/icons/minimized.png",
+      "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/minimized.png",
+      "assetId": null,
+      "verified": false,
+      "exists": true,
+      "dimensions": [
+        64,
+        64
+      ],
+      "mode": "RGBA"
+    },
     "Minus": {
       "file": "assets/icons/minus.png",
       "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/minus.png",
+      "assetId": null,
+      "verified": false,
+      "exists": true,
+      "dimensions": [
+        64,
+        64
+      ],
+      "mode": "RGBA"
+    },
+    "Notification": {
+      "file": "assets/icons/notification.png",
+      "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/notification.png",
       "assetId": null,
       "verified": false,
       "exists": true,
@@ -379,6 +451,18 @@
     "Reset": {
       "file": "assets/icons/reset.png",
       "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/reset.png",
+      "assetId": null,
+      "verified": false,
+      "exists": true,
+      "dimensions": [
+        64,
+        64
+      ],
+      "mode": "RGBA"
+    },
+    "Restored": {
+      "file": "assets/icons/restored.png",
+      "githubUrl": "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/restored.png",
       "assetId": null,
       "verified": false,
       "exists": true,
