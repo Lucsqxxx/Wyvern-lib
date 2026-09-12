@@ -105,7 +105,7 @@ function Dropdown.new(config, parent, theme)
 	popup.Name = "Popup"
 	popup.BackgroundColor3 = theme:Get("Surface")
 	popup.BorderSizePixel = 0
-	popup.Size = UDim2.new(1, 0, 0, 0)
+	popup.Size = UDim2.fromOffset(160, 0)
 	popup.Position = UDim2.new(0, 0, 1, 4)
 	popup.Visible = false
 	popup.ZIndex = 50
@@ -173,7 +173,7 @@ function Dropdown:_rebuildOptions()
 	local theme = self._theme
 	local maxVisible = math.min(#self._options, 6)
 	local itemH = 24
-	self._popup.Size = UDim2.new(1, 0, 0, maxVisible * (itemH + 2) + 10)
+	self:_applyPopupSize(maxVisible * (itemH + 2) + 10)
 
 	for i, opt in ipairs(self._options) do
 		local btn = Instance.new("TextButton")
@@ -226,6 +226,26 @@ function Dropdown:IsPointInside(pos)
 	return hit(self._box) or hit(self._popup)
 end
 
+
+function Dropdown:_applyPopupSize(height)
+	if not self._popup then return end
+	local w = 160
+	if self._box then
+		local aw = self._box.AbsoluteSize.X
+		if aw and aw > 1 then
+			w = math.clamp(math.floor(aw + 0.5), 96, 280)
+		end
+	end
+	local h = height
+	if not h then
+		local maxVisible = math.min(#self._options, 6)
+		h = maxVisible * 26 + 10
+	end
+	-- ALWAYS offset size — never Scale X (overlay is full-screen)
+	self._popup.Size = UDim2.fromOffset(w, h)
+	self._popupWidth = w
+end
+
 function Dropdown:_positionPopup()
 	if not self._popup or not self._box then
 		return
@@ -235,29 +255,36 @@ function Dropdown:_positionPopup()
 	local popup = self._popup
 	local absPos = box.AbsolutePosition
 	local absSize = box.AbsoluteSize
+	local popupH = math.min(#self._options, 6) * 26 + 10
+	self:_applyPopupSize(popupH)
+	local w = self._popupWidth or math.clamp(math.floor(absSize.X + 0.5), 96, 280)
+
 	local parent = overlay or box
 	if popup.Parent ~= parent then
 		popup.Parent = parent
 	end
-	-- Screen-space position relative to overlay (or under box)
+
 	if overlay and parent == overlay then
 		local oAbs = overlay.AbsolutePosition
 		local x = absPos.X - oAbs.X
 		local y = absPos.Y - oAbs.Y + absSize.Y + 4
-		local popupH = popup.AbsoluteSize.Y
-		if popupH < 1 then
-			popupH = math.min(#self._options, 6) * 26 + 10
-		end
 		local cam = workspace.CurrentCamera
-		local vpY = cam and cam.ViewportSize.Y or 1080
-		if absPos.Y + absSize.Y + 4 + popupH > vpY - 8 then
+		local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+		if absPos.Y + absSize.Y + 4 + popupH > vp.Y - 8 then
 			y = absPos.Y - oAbs.Y - popupH - 4
 		end
-		popup.Position = UDim2.fromOffset(x, y)
-		popup.Size = UDim2.fromOffset(absSize.X, popupH)
+		-- clamp horizontal inside viewport
+		if x + w > vp.X - 8 then
+			x = math.max(8, vp.X - w - 8) - oAbs.X
+		end
+		if x < 8 - oAbs.X then
+			x = 8 - oAbs.X
+		end
+		popup.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
+		popup.Size = UDim2.fromOffset(w, popupH)
 	else
 		popup.Position = UDim2.new(0, 0, 1, 4)
-		popup.Size = UDim2.new(1, 0, 0, math.min(#self._options, 6) * 26 + 10)
+		popup.Size = UDim2.fromOffset(w, popupH)
 	end
 end
 
@@ -286,7 +313,7 @@ function Dropdown:Close()
 		if self._box then
 			self._popup.Parent = self._box
 			self._popup.Position = UDim2.new(0, 0, 1, 4)
-			self._popup.Size = UDim2.new(1, 0, 0, 0)
+			self._popup.Size = UDim2.fromOffset(self._popupWidth or 160, 0)
 		end
 	end
 	if self._arrow then
