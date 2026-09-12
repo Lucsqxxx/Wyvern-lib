@@ -403,6 +403,239 @@ end)
 
 -- ===== END Core.Theme =====
 
+-- ===== BEGIN Icons.AssetProvider (Icons/AssetProvider.lua) =====
+
+__wyvern_define("Icons.AssetProvider", function()
+-- Icons/AssetProvider.lua
+-- Downloads GitHub PNG artwork and resolves to a Roblox Image source when the
+-- runtime supports custom/local assets (e.g. writefile + getcustomasset).
+-- Does NOT invent APIs. Does NOT use Unicode. Does NOT use fake rbxassetids.
+
+local HttpService = game:GetService("HttpService")
+
+local REPO_RAW = "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons"
+local CACHE_VERSION = "v1"
+local CACHE_ROOT = "Wyvern/icons/" .. CACHE_VERSION
+
+local FILE_MAP = {
+	Back = "back.png",
+	Forward = "forward.png",
+	ChevronLeft = "chevron_left.png",
+	ChevronRight = "chevron_right.png",
+	ChevronDown = "chevron_down.png",
+	ChevronUp = "chevron_up.png",
+	Minimize = "minimize.png",
+	Maximize = "maximize.png",
+	Fullscreen = "fullscreen.png",
+	Close = "close.png",
+	Search = "search.png",
+	Eye = "eye.png",
+	Check = "check.png",
+	CheckboxEmpty = "checkbox_empty.png",
+	CheckboxChecked = "checkbox_checked.png",
+	Reset = "reset.png",
+	Center = "center.png",
+	Info = "info.png",
+	User = "user.png",
+	Settings = "settings.png",
+	Home = "home.png",
+	Palette = "palette.png",
+	Scale = "scale.png",
+	Glass = "glass.png",
+	Checklist = "checklist.png",
+	Plus = "plus.png",
+	Minus = "minus.png",
+	Input = "input.png",
+	Textbox = "textbox.png",
+	Keybind = "keybind.png",
+	DropdownDown = "dropdown_down.png",
+	DropdownUp = "dropdown_up.png",
+	DockHome = "dock_home.png",
+	DockTab1 = "dock_tab1.png",
+	DockTab2 = "dock_tab2.png",
+	DockAbout = "dock_about.png",
+	DockSettings = "dock_settings.png",
+}
+
+local AssetProvider = {
+	_cache = {}, -- name -> image source string
+	_failed = {},
+	_capability = nil, -- "customasset" | "none"
+	_warned = false,
+}
+
+local function envHas(name)
+	local ok, fn = pcall(function()
+		return rawget(getfenv and getfenv(0) or _G, name) or rawget(_G, name)
+	end)
+	return ok and type(fn) == "function"
+end
+
+local function detectCapability()
+	if AssetProvider._capability then
+		return AssetProvider._capability
+	end
+	-- Prefer getcustomasset / getsynasset + writefile (common executor pattern)
+	local writefile = envHas("writefile") and (writefile or _G.writefile)
+	local isfolder = envHas("isfolder") and (isfolder or _G.isfolder)
+	local makefolder = envHas("makefolder") and (makefolder or _G.makefolder)
+	local getcustom = (envHas("getcustomasset") and (getcustomasset or _G.getcustomasset))
+		or (envHas("getsynasset") and (getsynasset or _G.getsynasset))
+	if type(writefile) == "function" and type(getcustom) == "function" then
+		AssetProvider._capability = "customasset"
+		AssetProvider._writefile = writefile
+		AssetProvider._getcustom = getcustom
+		AssetProvider._isfolder = type(isfolder) == "function" and isfolder or nil
+		AssetProvider._makefolder = type(makefolder) == "function" and makefolder or nil
+		AssetProvider._isfile = envHas("isfile") and (isfile or _G.isfile) or nil
+		return "customasset"
+	end
+	AssetProvider._capability = "none"
+	return "none"
+end
+
+local function ensureFolders()
+	local make = AssetProvider._makefolder
+	local isf = AssetProvider._isfolder
+	if not make then
+		return
+	end
+	local parts = { "Wyvern", "Wyvern/icons", CACHE_ROOT }
+	for _, path in ipairs(parts) do
+		local exists = false
+		if isf then
+			local ok, res = pcall(isf, path)
+			exists = ok and res
+		end
+		if not exists then
+			pcall(make, path)
+		end
+	end
+end
+
+local function httpGetBinary(url)
+	-- Prefer game:HttpGet (string) which works for binary PNG in many executors
+	local ok, data = pcall(function()
+		return game:HttpGet(url)
+	end)
+	if ok and type(data) == "string" and #data > 32 then
+		return data
+	end
+	-- syn.request / http_request fallbacks
+	local req = (envHas("syn") and syn and syn.request)
+		or (envHas("http_request") and http_request)
+		or (envHas("request") and request)
+	if type(req) == "function" then
+		local ok2, res = pcall(req, { Url = url, Method = "GET" })
+		if ok2 and type(res) == "table" and type(res.Body) == "string" and #res.Body > 32 then
+			return res.Body
+		end
+	end
+	return nil
+end
+
+function AssetProvider.GetCapability()
+	return detectCapability()
+end
+
+function AssetProvider.GetGitHubUrl(name)
+	local file = FILE_MAP[name]
+	if not file then
+		return nil
+	end
+	return REPO_RAW .. "/" .. file
+end
+
+--- Resolve icon name to an ImageLabel.Image string, or nil if unavailable.
+function AssetProvider.Resolve(name)
+	if type(name) ~= "string" then
+		return nil
+	end
+	if AssetProvider._cache[name] then
+		return AssetProvider._cache[name]
+	end
+	if AssetProvider._failed[name] then
+		return nil
+	end
+	if not FILE_MAP[name] then
+		return nil
+	end
+
+	local cap = detectCapability()
+	if cap ~= "customasset" then
+		if not AssetProvider._warned then
+			AssetProvider._warned = true
+			warn("[Wyvern] Image asset provider unavailable.")
+			warn("[Wyvern] GitHub PNGs exist under assets/icons/ but this runtime cannot resolve custom images (need writefile + getcustomasset/getsynasset).")
+			warn("[Wyvern] Icons will not render as images in this environment.")
+		end
+		AssetProvider._failed[name] = true
+		return nil
+	end
+
+	ensureFolders()
+	local path = CACHE_ROOT .. "/" .. FILE_MAP[name]
+	local writefile = AssetProvider._writefile
+	local getcustom = AssetProvider._getcustom
+	local isfile = AssetProvider._isfile
+
+	local needDownload = true
+	if isfile then
+		local ok, exists = pcall(isfile, path)
+		if ok and exists then
+			needDownload = false
+		end
+	end
+
+	if needDownload then
+		local url = AssetProvider.GetGitHubUrl(name)
+		if not url or not string.find(url, "raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/", 1, true) then
+			AssetProvider._failed[name] = true
+			return nil
+		end
+		local body = httpGetBinary(url)
+		if not body then
+			warn("[Wyvern] Failed to download icon:", name)
+			AssetProvider._failed[name] = true
+			return nil
+		end
+		local okWrite = pcall(writefile, path, body)
+		if not okWrite then
+			warn("[Wyvern] Failed to cache icon:", name)
+			AssetProvider._failed[name] = true
+			return nil
+		end
+	end
+
+	local ok, asset = pcall(getcustom, path)
+	if ok and type(asset) == "string" and asset ~= "" then
+		AssetProvider._cache[name] = asset
+		return asset
+	end
+
+	warn("[Wyvern] getcustomasset failed for icon:", name)
+	AssetProvider._failed[name] = true
+	return nil
+end
+
+function AssetProvider.Preload(names)
+	if type(names) ~= "table" then
+		return
+	end
+	for _, name in ipairs(names) do
+		pcall(AssetProvider.Resolve, name)
+	end
+end
+
+AssetProvider.FileMap = FILE_MAP
+AssetProvider.RepoRaw = REPO_RAW
+AssetProvider.CacheVersion = CACHE_VERSION
+
+return AssetProvider
+end)
+
+-- ===== END Icons.AssetProvider =====
+
 -- ===== BEGIN Icons.Renderer (Icons/Renderer.lua) =====
 
 __wyvern_define("Icons.Renderer", function()
@@ -1041,82 +1274,32 @@ end)
 
 __wyvern_define("Icons.Registry", function()
 -- Icons/Registry.lua
--- Canonical icon artwork lives in the GitHub repository:
---   assets/icons/<name>.png
--- Raw URL pattern:
---   https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/<name>.png
---
--- Roblox ImageLabel/ImageButton cannot load arbitrary HTTPS URLs as Image.
--- Runtime therefore uses Icons.Renderer (vector primitives matching the sheet).
--- Optional: after uploading a PNG to Roblox Creator, set AssetIds[Name] = "rbxassetid://...".
--- Never invent placeholder asset IDs.
+-- Image-first icon system. GitHub PNGs are source of truth (assets/icons/).
+-- Runtime resolves via Icons/AssetProvider when custom-asset APIs exist.
 
+local AssetProvider = __wyvern_require("Icons.AssetProvider")
+-- Vector renderer kept ONLY as explicit offline fallback (disabled by default)
 local Renderer = __wyvern_require("Icons.Renderer")
 
-local REPO_RAW = "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons"
-
-local FILE_MAP = {
-	Back = "back.png",
-	Forward = "forward.png",
-	ChevronLeft = "chevron_left.png",
-	ChevronRight = "chevron_right.png",
-	ChevronDown = "chevron_down.png",
-	ChevronUp = "chevron_up.png",
-	Minimize = "minimize.png",
-	Maximize = "maximize.png",
-	Fullscreen = "fullscreen.png",
-	Close = "close.png",
-	Search = "search.png",
-	Eye = "eye.png",
-	Check = "check.png",
-	CheckboxEmpty = "checkbox_empty.png",
-	CheckboxChecked = "checkbox_checked.png",
-	Reset = "reset.png",
-	Center = "center.png",
-	Info = "info.png",
-	User = "user.png",
-	Settings = "settings.png",
-	Home = "home.png",
-	Palette = "palette.png",
-	Scale = "scale.png",
-	Glass = "glass.png",
-	Checklist = "checklist.png",
-	Plus = "plus.png",
-	Minus = "minus.png",
-	Input = "input.png",
-	Textbox = "textbox.png",
-	Keybind = "keybind.png",
-	DropdownDown = "dropdown_down.png",
-	DropdownUp = "dropdown_up.png",
-	DockHome = "dock_home.png",
-	DockTab1 = "dock_tab1.png",
-	DockTab2 = "dock_tab2.png",
-	DockAbout = "dock_about.png",
-	DockSettings = "dock_settings.png",
-}
-
 local Icons = {
+	AssetProvider = AssetProvider,
 	Renderer = Renderer,
-	RepoRawBase = REPO_RAW,
-	Files = FILE_MAP,
-	-- Only verified Roblox asset IDs (empty by default — no fakes)
-	AssetIds = {},
+	-- AllowVectorFallback = false by default
+	AllowVectorFallback = false,
+	RepoRawBase = AssetProvider.RepoRaw,
+	Files = AssetProvider.FileMap,
+	AssetIds = {}, -- optional verified rbxassetid overrides only
 }
 
 function Icons.GetGitHubUrl(name)
-	local file = FILE_MAP[name]
-	if not file then
-		return nil
-	end
-	return REPO_RAW .. "/" .. file
+	return AssetProvider.GetGitHubUrl(name)
 end
 
 function Icons.Get(name)
-	local id = Icons.AssetIds[name]
-	if type(id) == "string" and id ~= "" then
-		return id
+	if Icons.AssetIds[name] then
+		return Icons.AssetIds[name]
 	end
-	return nil
+	return AssetProvider.Resolve(name)
 end
 
 function Icons.SetAsset(name, assetId)
@@ -1124,7 +1307,7 @@ function Icons.SetAsset(name, assetId)
 		return
 	end
 	if not string.match(assetId, "^rbxassetid://%d+$") then
-		warn("[Wyvern Icons] refusing non-rbxassetid value for", name)
+		warn("[Wyvern Icons] refusing non-rbxassetid for", name)
 		return
 	end
 	Icons.AssetIds[name] = assetId
@@ -1132,58 +1315,76 @@ end
 
 function Icons.Create(parent, name, options)
 	options = options or {}
-	local assetId = Icons.Get(name)
-	if assetId then
-		local holder = Instance.new("Frame")
-		holder.Name = "Icon_" .. tostring(name)
-		holder.BackgroundTransparency = 1
-		holder.Size = options.FullSize or UDim2.fromScale(1, 1)
-		holder.ZIndex = options.ZIndex or 5
-		holder.Parent = parent
-		local img = Instance.new("ImageLabel")
-		img.BackgroundTransparency = 1
-		img.Size = UDim2.fromOffset(options.Size or 16, options.Size or 16)
-		img.Position = UDim2.fromScale(0.5, 0.5)
-		img.AnchorPoint = Vector2.new(0.5, 0.5)
-		img.Image = assetId
-		img.ImageColor3 = options.Color or Color3.fromRGB(170, 160, 185)
-		img.ZIndex = (options.ZIndex or 5) + 1
-		img.Parent = holder
-		holder:SetAttribute("IconName", name)
-		return holder
+	local size = options.Size or 16
+	local color = options.Color or Color3.fromRGB(180, 175, 195)
+	local z = options.ZIndex or 5
+
+	local holder = Instance.new("Frame")
+	holder.Name = "Icon_" .. tostring(name)
+	holder.BackgroundTransparency = 1
+	holder.Size = options.FullSize or UDim2.fromScale(1, 1)
+	holder.ZIndex = z
+	holder.Parent = parent
+	holder:SetAttribute("IconName", name)
+
+	local img = Instance.new("ImageLabel")
+	img.Name = "Image"
+	img.BackgroundTransparency = 1
+	img.Size = UDim2.fromOffset(size, size)
+	img.Position = UDim2.fromScale(0.5, 0.5)
+	img.AnchorPoint = Vector2.new(0.5, 0.5)
+	img.ScaleType = Enum.ScaleType.Fit
+	img.ImageColor3 = color
+	img.ZIndex = z + 1
+	img.Parent = holder
+
+	local source = Icons.AssetIds[name] or AssetProvider.Resolve(name)
+	if source then
+		img.Image = source
+	else
+		img.Image = ""
+		if Icons.AllowVectorFallback then
+			-- Explicit opt-in only
+			local vectorHolder = Renderer.Create(holder, name, options)
+			vectorHolder.Size = UDim2.fromScale(1, 1)
+		end
 	end
-	-- Self-contained runtime path (loadstring dist): vector matching the sheet language
-	return Renderer.Create(parent, name, options)
+
+	return holder
 end
 
 function Icons.SetColor(holder, color)
 	if not holder then
 		return
 	end
-	local img = holder:FindFirstChildWhichIsA("ImageLabel", true)
-	if img then
+	local img = holder:FindFirstChild("Image")
+	if img and img:IsA("ImageLabel") then
 		img.ImageColor3 = color
 		return
 	end
+	-- vector fallback children if any
 	local root = holder:FindFirstChild("IconRoot")
-	if not root then
-		return
-	end
-	for _, d in ipairs(root:GetDescendants()) do
-		if d:IsA("Frame") then
-			if d.BackgroundTransparency < 1 then
-				d.BackgroundColor3 = color
-			end
-			local stroke = d:FindFirstChildOfClass("UIStroke")
-			if stroke then
-				stroke.Color = color
+	if root then
+		for _, d in ipairs(root:GetDescendants()) do
+			if d:IsA("Frame") then
+				if d.BackgroundTransparency < 1 then
+					d.BackgroundColor3 = color
+				end
+				local stroke = d:FindFirstChildOfClass("UIStroke")
+				if stroke then
+					stroke.Color = color
+				end
 			end
 		end
 	end
 end
 
 function Icons.Has(name)
-	return FILE_MAP[name] ~= nil or Renderer.Builders[name] ~= nil
+	return AssetProvider.FileMap[name] ~= nil
+end
+
+function Icons.Preload(names)
+	AssetProvider.Preload(names)
 end
 
 return Icons
@@ -4741,6 +4942,10 @@ function Window.new(config, theme, scale)
 			if type(unsub) == "function" then unsub() end
 		end)
 	end
+
+	pcall(function()
+		Icons.Preload({ "Home", "Eye", "Checklist", "Target", "Settings", "User", "Info", "Close", "Minimize", "Search", "Check", "Back" })
+	end)
 
 	ActiveWindows[self._name] = self
 	return self
