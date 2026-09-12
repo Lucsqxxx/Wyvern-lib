@@ -2,7 +2,14 @@
 
 ## v1.0.0 — 2026-09-11
 
+### Fixed
+- Window position teleport on interact (Scale/Offset drag mix)
+- Minimize now hides search bar and all expanded chrome
+- Bottom / secondary nav icons are clickable (tab selection + visual state)
+- Secondary bar follows window position after drag
+
 ### Added
+
 - Standalone `dist/Wyvern.lua` for loadstring / client distribution
 - Reproducible build: `tools/build_standalone.py`
 - Loadstring-oriented documentation
