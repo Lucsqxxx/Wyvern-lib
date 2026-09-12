@@ -4405,16 +4405,16 @@ local Maid = __wyvern_require("Core.Maid")
 local Constants = __wyvern_require("Core.Constants")
 local Flags = __wyvern_require("Core.Flags")
 
-local Button = __wyvern_require("Core.Button")
-local Toggle = __wyvern_require("Core.Toggle")
-local Slider = __wyvern_require("Core.Slider")
-local Keybind = __wyvern_require("Core.Keybind")
-local Label = __wyvern_require("Core.Label")
-local Dropdown = __wyvern_require("Core.Dropdown")
-local MultiDropdown = __wyvern_require("Core.MultiDropdown")
-local Textbox = __wyvern_require("Core.Textbox")
-local ColorPicker = __wyvern_require("Core.ColorPicker")
-local Divider = __wyvern_require("Core.Divider")
+local Button = __wyvern_require("Components.Button")
+local Toggle = __wyvern_require("Components.Toggle")
+local Slider = __wyvern_require("Components.Slider")
+local Keybind = __wyvern_require("Components.Keybind")
+local Label = __wyvern_require("Components.Label")
+local Dropdown = __wyvern_require("Components.Dropdown")
+local MultiDropdown = __wyvern_require("Components.MultiDropdown")
+local Textbox = __wyvern_require("Components.Textbox")
+local ColorPicker = __wyvern_require("Components.ColorPicker")
+local Divider = __wyvern_require("Components.Divider")
 
 local Feature = {}
 Feature.__index = Feature
@@ -6619,6 +6619,17 @@ end)
 
 -- ===== END init =====
 
+
+
+-- Compatibility aliases: Core.* component names -> Components.*
+for _, name in ipairs({
+	"Button", "Toggle", "Slider", "Keybind", "Label", "Dropdown",
+	"MultiDropdown", "Textbox", "ColorPicker", "Divider", "Feature", "ProgressBar",
+}) do
+	if __wyvern_modules["Components." .. name] and not __wyvern_modules["Core." .. name] then
+		__wyvern_modules["Core." .. name] = __wyvern_modules["Components." .. name]
+	end
+end
 
 -- Bootstrap public API
 local Wyvern = __wyvern_require("init")
