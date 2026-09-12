@@ -1,3 +1,10 @@
+## [1.1.0]
+
+### Added
+- Real HSV ColorPicker popup (SV field + hue bar)
+- Minimize/Restore interruptible Tween state machine
+- Animation Speed setting (Slow/Normal/Fast/Instant)
+
 ## [1.0.3]
 
 ### Fixed

@@ -4,6 +4,7 @@
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local Maid = require(script.Parent.Maid)
 local Tab = require(script.Parent.Tab)
@@ -799,6 +800,16 @@ function Window:OpenSettings()
 		end,
 	})
 
+	behavior:CreateDropdown({
+		Name = "Animation Speed",
+		Options = { "Slow", "Normal", "Fast", "Instant" },
+		Default = "Normal",
+		Callback = function(v)
+			local map = { Slow = 0.6, Normal = 1, Fast = 1.6, Instant = 0 }
+			self._animSpeed = map[v] or 1
+		end,
+	})
+
 	windowSec:CreateButton({
 		Name = "Center Window",
 		Callback = function()
@@ -906,61 +917,115 @@ function Window:Toggle()
 	end
 end
 
+function Window:_animDuration(base)
+	if self._animationsEnabled == false then
+		return 0
+	end
+	local speed = self._animSpeed or 1
+	if speed <= 0 then
+		return 0
+	end
+	return (base or Constants.PanelDuration or 0.2) / speed
+end
+
+function Window:_cancelMinTween()
+	if self._minTween then
+		pcall(function()
+			self._minTween:Cancel()
+		end)
+		self._minTween = nil
+	end
+end
+
 function Window:Minimize()
-	if self._destroyed or self._minimized then
+	if self._destroyed then
 		return
 	end
-	-- Close any open dropdowns/popups so they don't float after chrome hides
+	if self._windowState == "Minimized" or self._windowState == "Minimizing" then
+		return
+	end
 	pcall(function()
 		PopupManager.CloseAll()
 	end)
+	self._windowState = "Minimizing"
 	self._minimized = true
 	self._dragging = false
+	self._dragPending = false
 	self._dragStart = nil
 	self._startAbs = nil
 
 	if self._main then
 		self._savedPosition = self._main.Position
 	end
+	if self._searchFrame then self._searchFrame.Visible = false end
+	if self._contentContainer then self._contentContainer.Visible = false end
+	if self._bottomNav then self._bottomNav.Visible = false end
 
-	-- Hide all expanded-window chrome (including search)
-	if self._searchFrame then
-		self._searchFrame.Visible = false
+	self:_cancelMinTween()
+	local target = UDim2.fromOffset(Constants.WindowWidth, Constants.HeaderHeight + 10)
+	local dur = self:_animDuration(0.18)
+	if dur <= 0 or not self._main then
+		if self._main then self._main.Size = target end
+		self._windowState = "Minimized"
+		self:_syncSecondary()
+		return
 	end
-	if self._contentContainer then
-		self._contentContainer.Visible = false
-	end
-	if self._bottomNav then
-		self._bottomNav.Visible = false
-	end
-	if self._main then
-		self._main.Size = UDim2.fromOffset(Constants.WindowWidth, Constants.HeaderHeight + 10)
-	end
-	self:_syncSecondary()
+	local tw = TweenService:Create(self._main, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = target,
+	})
+	self._minTween = tw
+	tw.Completed:Connect(function()
+		if self._destroyed then return end
+		if self._windowState == "Minimizing" then
+			self._windowState = "Minimized"
+		end
+		self._minTween = nil
+		self:_syncSecondary()
+	end)
+	tw:Play()
 end
 
 function Window:Restore()
-	if self._destroyed or not self._minimized then
+	if self._destroyed then
 		return
 	end
+	if self._windowState == "Visible" or self._windowState == "Restoring" then
+		if not self._minimized then return end
+	end
+	self._windowState = "Restoring"
 	self._minimized = false
 
-	if self._searchFrame then
-		self._searchFrame.Visible = true
+	self:_cancelMinTween()
+	local target = UDim2.fromOffset(Constants.WindowWidth, Constants.WindowHeight)
+	local dur = self:_animDuration(0.18)
+	if self._main and self._savedPosition then
+		self._main.Position = self._savedPosition
 	end
-	if self._contentContainer then
-		self._contentContainer.Visible = true
+	local function finish()
+		if self._destroyed then return end
+		if self._searchFrame then self._searchFrame.Visible = true end
+		if self._contentContainer then self._contentContainer.Visible = true end
+		if self._bottomNav then self._bottomNav.Visible = true end
+		self._windowState = "Visible"
+		self:_syncSecondary()
 	end
-	if self._bottomNav then
-		self._bottomNav.Visible = true
+	if dur <= 0 or not self._main then
+		if self._main then self._main.Size = target end
+		finish()
+		return
 	end
-	if self._main then
-		self._main.Size = UDim2.fromOffset(Constants.WindowWidth, Constants.WindowHeight)
-		if self._savedPosition then
-			self._main.Position = self._savedPosition
+	local tw = TweenService:Create(self._main, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = target,
+	})
+	self._minTween = tw
+	tw.Completed:Connect(function()
+		if self._destroyed then return end
+		self._minTween = nil
+		if self._windowState == "Restoring" then
+			finish()
 		end
-	end
-	self:_syncSecondary()
+	end)
+	tw:Play()
 end
 
 function Window:SetVisible(visible)
