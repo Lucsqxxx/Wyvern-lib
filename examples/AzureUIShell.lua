@@ -2,11 +2,53 @@
 -- SAFE UI-ONLY shell reproducing Azure-style tab/module structure on Wyvern.
 -- All callbacks are benign print/Notify stubs. No game/exploit logic.
 
-local library = loadstring(game:HttpGet(
-  "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/dist/Wyvern.lua"
-))()
+local function wyvernHttpGet(url)
+	local ok, body = pcall(function()
+		return game:HttpGet(url)
+	end)
+	if ok and type(body) == "string" and #body > 100 then
+		return body
+	end
+	local req = (syn and syn.request) or http_request or request
+	if type(req) == "function" then
+		local ok2, res = pcall(req, { Url = url, Method = "GET" })
+		if ok2 and type(res) == "table" and type(res.Body) == "string" and #res.Body > 100 then
+			return res.Body
+		end
+	end
+	error("[Wyvern Shell] failed to download library: " .. tostring(url))
+end
+
+local function wyvernLoad(src)
+	local chunk, err
+	if type(loadstring) == "function" then
+		chunk, err = loadstring(src)
+	elseif type(load) == "function" then
+		chunk, err = load(src)
+	else
+		error("[Wyvern Shell] loadstring/load unavailable")
+	end
+	if not chunk then
+		error("[Wyvern Shell] compile failed: " .. tostring(err))
+	end
+	local ok, lib = pcall(chunk)
+	if not ok then
+		error("[Wyvern Shell] runtime init failed: " .. tostring(lib))
+	end
+	if type(lib) ~= "table" or type(lib.CreateWindow) ~= "function" then
+		error("[Wyvern Shell] library did not return CreateWindow API")
+	end
+	return lib
+end
+
+local library = wyvernLoad(wyvernHttpGet(
+	"https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/dist/Wyvern.lua"
+))
 
 local Window = library:CreateWindow({ Name = "Wyvern UI Shell", Version = "1.0.0" })
+if not Window then
+	error("[Wyvern Shell] CreateWindow returned nil")
+end
 
 local function stub(name)
   return function(...)
