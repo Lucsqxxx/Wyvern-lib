@@ -15,6 +15,7 @@ local Textbox = require(script.Parent.Parent.Components.Textbox)
 local ColorPicker = require(script.Parent.Parent.Components.ColorPicker)
 local Divider = require(script.Parent.Parent.Components.Divider)
 local Feature = require(script.Parent.Parent.Components.Feature)
+local ProgressBar = require(script.Parent.Parent.Components.ProgressBar)
 local Flags = require(script.Parent.Flags)
 
 local Section = {}
@@ -214,6 +215,16 @@ function Section:CreateNotification(config)
 	return nil
 end
 
+function Section:CreateProgressBar(config)
+	local c = ProgressBar.new(config or {}, self._instance, self._theme, self._search, self._input)
+	table.insert(self._components, c)
+	return c
+end
+
+function Section:AddProgressBar(config)
+	return self:CreateProgressBar(config)
+end
+
 function Section:CreateFeature(config)
 	config = config or {}
 	local feature = Feature.new(config, self._instance, self._theme, self._search, self._input)
@@ -234,3 +245,21 @@ function Section:Destroy()
 end
 
 return Section
+
+
+-- Preferred Add* aliases (Create* retained for compatibility)
+function Section:AddButton(c) return self:CreateButton(c) end
+function Section:AddToggle(c) return self:CreateToggle(c) end
+function Section:AddCheckbox(c) return self:CreateCheckbox(c) end
+function Section:AddSlider(c) return self:CreateSlider(c) end
+function Section:AddDropdown(c) return self:CreateDropdown(c) end
+function Section:AddMultiDropdown(c) return self:CreateMultiDropdown(c) end
+function Section:AddTextbox(c) return self:CreateTextbox(c) end
+function Section:AddInput(c) return self:CreateInput(c) end
+function Section:AddKeybind(c) return self:CreateKeybind(c) end
+function Section:AddColorPicker(c) return self:CreateColorPicker(c) end
+function Section:AddLabel(c) return self:CreateLabel(c) end
+function Section:AddParagraph(c) return self:CreateParagraph(c) end
+function Section:AddDivider(c) return self:CreateDivider(c) end
+function Section:AddSpacer(c) return self:CreateSpacer(c) end
+function Section:AddFeature(c) return self:CreateFeature(c) end

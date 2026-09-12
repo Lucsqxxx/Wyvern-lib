@@ -1179,3 +1179,38 @@ function Window:Destroy()
 end
 
 return Window
+
+function Window:AddTab(config)
+	return self:CreateTab(config)
+end
+
+function Window:Show()
+	return self:SetVisible(true)
+end
+
+function Window:Hide()
+	return self:SetVisible(false)
+end
+
+function Window:IsVisible()
+	return self._instance and self._instance.Visible
+end
+
+function Window:IsMinimized()
+	return self._minimized == true
+end
+
+function Window:GetScale()
+	return self._scale or 1
+end
+
+function Window:Center()
+	if not self._frame then return end
+	local cam = workspace.CurrentCamera
+	local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+	local size = self._frame.AbsoluteSize
+	self._frame.Position = UDim2.fromOffset(
+		math.floor((vp.X - size.X) / 2),
+		math.floor((vp.Y - size.Y) / 2)
+	)
+end

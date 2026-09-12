@@ -2097,6 +2097,167 @@ end)
 
 -- ===== END Core.Flags =====
 
+-- ===== BEGIN Core.Modal (Core/Modal.lua) =====
+
+__wyvern_define("Core.Modal", function()
+-- Core/Modal.lua — simple confirm dialog on OverlayLayer
+local TweenService = game:GetService("TweenService")
+local Maid = __wyvern_require("Core.Maid")
+local PopupManager = __wyvern_require("Core.PopupManager")
+
+local Modal = {}
+
+function Modal.Confirm(config, theme, parentGui)
+	config = config or {}
+	local title = config.Title or "Confirm"
+	local desc = config.Description or config.Text or ""
+	local confirmText = config.ConfirmText or "Confirm"
+	local cancelText = config.CancelText or "Cancel"
+	local themeGet = theme and function(k) return theme:Get(k) end or function(k)
+		local d = {
+			Surface = Color3.fromRGB(28, 26, 36),
+			Border = Color3.fromRGB(60, 55, 75),
+			Text = Color3.fromRGB(235, 230, 245),
+			TextSecondary = Color3.fromRGB(160, 155, 175),
+			Accent = Color3.fromRGB(180, 120, 255),
+		}
+		return d[k] or Color3.new(1,1,1)
+	end
+
+	local done = false
+	local result = false
+	local maid = Maid.new()
+
+	local overlay = Instance.new("Frame")
+	overlay.Name = "WyvernModalOverlay"
+	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	overlay.BackgroundTransparency = 0.45
+	overlay.Size = UDim2.fromScale(1, 1)
+	overlay.ZIndex = 200
+	overlay.Parent = parentGui or PopupManager.GetOverlay()
+
+	local card = Instance.new("Frame")
+	card.Size = UDim2.fromOffset(320, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.fromScale(0.5, 0.5)
+	card.BackgroundColor3 = themeGet("Surface")
+	card.BorderSizePixel = 0
+	card.ZIndex = 201
+	card.Parent = overlay
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = card
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = themeGet("Border")
+	stroke.Transparency = 0.4
+	stroke.Parent = card
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 16)
+	pad.PaddingBottom = UDim.new(0, 16)
+	pad.PaddingLeft = UDim.new(0, 16)
+	pad.PaddingRight = UDim.new(0, 16)
+	pad.Parent = card
+
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0, 10)
+	list.Parent = card
+
+	local tLabel = Instance.new("TextLabel")
+	tLabel.BackgroundTransparency = 1
+	tLabel.Size = UDim2.new(1, 0, 0, 20)
+	tLabel.Font = Enum.Font.GothamBold
+	tLabel.TextSize = 15
+	tLabel.TextColor3 = themeGet("Text")
+	tLabel.TextXAlignment = Enum.TextXAlignment.Left
+	tLabel.Text = title
+	tLabel.ZIndex = 202
+	tLabel.Parent = card
+
+	if desc ~= "" then
+		local dLabel = Instance.new("TextLabel")
+		dLabel.BackgroundTransparency = 1
+		dLabel.Size = UDim2.new(1, 0, 0, 0)
+		dLabel.AutomaticSize = Enum.AutomaticSize.Y
+		dLabel.Font = Enum.Font.Gotham
+		dLabel.TextSize = 13
+		dLabel.TextColor3 = themeGet("TextSecondary")
+		dLabel.TextXAlignment = Enum.TextXAlignment.Left
+		dLabel.TextWrapped = true
+		dLabel.Text = desc
+		dLabel.ZIndex = 202
+		dLabel.Parent = card
+	end
+
+	local row = Instance.new("Frame")
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.new(1, 0, 0, 32)
+	row.ZIndex = 202
+	row.Parent = card
+
+	local rowLayout = Instance.new("UIListLayout")
+	rowLayout.FillDirection = Enum.FillDirection.Horizontal
+	rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	rowLayout.Padding = UDim.new(0, 8)
+	rowLayout.Parent = row
+
+	local function finish(v)
+		if done then return end
+		done = true
+		result = v
+		maid:Destroy()
+		pcall(function() overlay:Destroy() end)
+	end
+
+	local cancel = Instance.new("TextButton")
+	cancel.Size = UDim2.fromOffset(90, 30)
+	cancel.BackgroundColor3 = themeGet("Surface")
+	cancel.Text = cancelText
+	cancel.TextColor3 = themeGet("Text")
+	cancel.Font = Enum.Font.GothamMedium
+	cancel.TextSize = 13
+	cancel.ZIndex = 203
+	cancel.Parent = row
+	Instance.new("UICorner", cancel).CornerRadius = UDim.new(0, 6)
+	cancel.MouseButton1Click:Connect(function() finish(false) end)
+
+	local confirm = Instance.new("TextButton")
+	confirm.Size = UDim2.fromOffset(90, 30)
+	confirm.BackgroundColor3 = themeGet("Accent")
+	confirm.Text = confirmText
+	confirm.TextColor3 = Color3.new(1, 1, 1)
+	confirm.Font = Enum.Font.GothamMedium
+	confirm.TextSize = 13
+	confirm.ZIndex = 203
+	confirm.Parent = row
+	Instance.new("UICorner", confirm).CornerRadius = UDim.new(0, 6)
+	confirm.MouseButton1Click:Connect(function() finish(true) end)
+
+	maid:Give(overlay)
+
+	if config.Callback then
+		task.spawn(function()
+			while not done do task.wait(0.05) end
+			pcall(config.Callback, result)
+		end)
+		return
+	end
+
+	while not done do
+		task.wait(0.05)
+	end
+	return result
+end
+
+return Modal
+end)
+
+-- ===== END Core.Modal =====
+
 -- ===== BEGIN Core.PopupManager (Core/PopupManager.lua) =====
 
 __wyvern_define("Core.PopupManager", function()
@@ -4586,6 +4747,109 @@ end)
 
 -- ===== END Components.Feature =====
 
+-- ===== BEGIN Components.ProgressBar (Components/ProgressBar.lua) =====
+
+__wyvern_define("Components.ProgressBar", function()
+-- Components/ProgressBar.lua
+local Component = __wyvern_require("Core.Component")
+local Constants = __wyvern_require("Core.Constants")
+
+local ProgressBar = setmetatable({}, { __index = Component })
+ProgressBar.__index = ProgressBar
+
+function ProgressBar.new(config, parent, theme, search, inputManager)
+	config = config or {}
+	local self = setmetatable(Component.new(config), ProgressBar)
+	self._theme = theme
+	self._value = tonumber(config.Default) or tonumber(config.Value) or 0
+	self._min = tonumber(config.Min) or 0
+	self._max = tonumber(config.Max) or 100
+	if self._max <= self._min then self._max = self._min + 1 end
+
+	local row = Instance.new("Frame")
+	row.Name = "ProgressBar"
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.new(1, 0, 0, 28)
+	row.ClipsDescendants = true
+	row.Parent = parent
+	self._instance = row
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(1, -40, 0, 14)
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 12
+	label.TextColor3 = theme:Get("Text")
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.Text = config.Name or config.Title or "Progress"
+	label.Parent = row
+	self._label = label
+
+	local pct = Instance.new("TextLabel")
+	pct.BackgroundTransparency = 1
+	pct.Size = UDim2.new(0, 36, 0, 14)
+	pct.Position = UDim2.new(1, -36, 0, 0)
+	pct.Font = Enum.Font.GothamMedium
+	pct.TextSize = 11
+	pct.TextColor3 = theme:Get("TextSecondary") or theme:Get("Text")
+	pct.TextXAlignment = Enum.TextXAlignment.Right
+	pct.Parent = row
+	self._pct = pct
+
+	local track = Instance.new("Frame")
+	track.Name = "Track"
+	track.BackgroundColor3 = theme:Get("SurfaceSecondary") or theme:Get("Surface")
+	track.BorderSizePixel = 0
+	track.Size = UDim2.new(1, 0, 0, 6)
+	track.Position = UDim2.new(0, 0, 0, 18)
+	track.Parent = row
+	Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+	self._track = track
+
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.BackgroundColor3 = theme:Get("Accent")
+	fill.BorderSizePixel = 0
+	fill.Size = UDim2.new(0, 0, 1, 0)
+	fill.Parent = track
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+	self._fill = fill
+
+	self:Set(self._value)
+	self._maid:Give(row)
+	return self
+end
+
+function ProgressBar:Set(value)
+	value = math.clamp(tonumber(value) or 0, self._min, self._max)
+	self._value = value
+	local alpha = (value - self._min) / (self._max - self._min)
+	if self._fill then
+		self._fill.Size = UDim2.new(alpha, 0, 1, 0)
+	end
+	if self._pct then
+		self._pct.Text = tostring(math.floor(alpha * 100 + 0.5)) .. "%"
+	end
+	Component.Set(self, value)
+end
+
+function ProgressBar:SetProgress(v)
+	self:Set(v)
+end
+
+function ProgressBar:ApplyTheme(theme)
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("Text") end
+	if self._track then self._track.BackgroundColor3 = theme:Get("SurfaceSecondary") or theme:Get("Surface") end
+	if self._fill then self._fill.BackgroundColor3 = theme:Get("Accent") end
+end
+
+return ProgressBar
+end)
+
+-- ===== END Components.ProgressBar =====
+
 -- ===== BEGIN Core.Section (Core/Section.lua) =====
 
 __wyvern_define("Core.Section", function()
@@ -4606,6 +4870,7 @@ local Textbox = __wyvern_require("Components.Textbox")
 local ColorPicker = __wyvern_require("Components.ColorPicker")
 local Divider = __wyvern_require("Components.Divider")
 local Feature = __wyvern_require("Components.Feature")
+local ProgressBar = __wyvern_require("Components.ProgressBar")
 local Flags = __wyvern_require("Core.Flags")
 
 local Section = {}
@@ -4805,6 +5070,16 @@ function Section:CreateNotification(config)
 	return nil
 end
 
+function Section:CreateProgressBar(config)
+	local c = ProgressBar.new(config or {}, self._instance, self._theme, self._search, self._input)
+	table.insert(self._components, c)
+	return c
+end
+
+function Section:AddProgressBar(config)
+	return self:CreateProgressBar(config)
+end
+
 function Section:CreateFeature(config)
 	config = config or {}
 	local feature = Feature.new(config, self._instance, self._theme, self._search, self._input)
@@ -4825,6 +5100,24 @@ function Section:Destroy()
 end
 
 return Section
+
+
+-- Preferred Add* aliases (Create* retained for compatibility)
+function Section:AddButton(c) return self:CreateButton(c) end
+function Section:AddToggle(c) return self:CreateToggle(c) end
+function Section:AddCheckbox(c) return self:CreateCheckbox(c) end
+function Section:AddSlider(c) return self:CreateSlider(c) end
+function Section:AddDropdown(c) return self:CreateDropdown(c) end
+function Section:AddMultiDropdown(c) return self:CreateMultiDropdown(c) end
+function Section:AddTextbox(c) return self:CreateTextbox(c) end
+function Section:AddInput(c) return self:CreateInput(c) end
+function Section:AddKeybind(c) return self:CreateKeybind(c) end
+function Section:AddColorPicker(c) return self:CreateColorPicker(c) end
+function Section:AddLabel(c) return self:CreateLabel(c) end
+function Section:AddParagraph(c) return self:CreateParagraph(c) end
+function Section:AddDivider(c) return self:CreateDivider(c) end
+function Section:AddSpacer(c) return self:CreateSpacer(c) end
+function Section:AddFeature(c) return self:CreateFeature(c) end
 end)
 
 -- ===== END Core.Section =====
@@ -4968,6 +5261,10 @@ function Tab:Destroy()
 end
 
 return Tab
+
+function Tab:AddSection(config)
+	return self:CreateSection(config)
+end
 end)
 
 -- ===== END Core.Tab =====
@@ -6156,6 +6453,41 @@ function Window:Destroy()
 end
 
 return Window
+
+function Window:AddTab(config)
+	return self:CreateTab(config)
+end
+
+function Window:Show()
+	return self:SetVisible(true)
+end
+
+function Window:Hide()
+	return self:SetVisible(false)
+end
+
+function Window:IsVisible()
+	return self._instance and self._instance.Visible
+end
+
+function Window:IsMinimized()
+	return self._minimized == true
+end
+
+function Window:GetScale()
+	return self._scale or 1
+end
+
+function Window:Center()
+	if not self._frame then return end
+	local cam = workspace.CurrentCamera
+	local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+	local size = self._frame.AbsoluteSize
+	self._frame.Position = UDim2.fromOffset(
+		math.floor((vp.X - size.X) / 2),
+		math.floor((vp.Y - size.Y) / 2)
+	)
+end
 end)
 
 -- ===== END Core.Window =====
@@ -6184,6 +6516,7 @@ local Icons = __wyvern_require("Icons.Registry")
 local SakuraTheme = __wyvern_require("Themes.Sakura")
 local Flags = __wyvern_require("Core.Flags")
 local Notification = __wyvern_require("Core.Notification")
+local Modal = __wyvern_require("Core.Modal")
 
 local Wyvern = {
 	_version = "1.0.0",
@@ -6275,6 +6608,12 @@ end
 
 function Wyvern.SendNotification(config)
 	return Wyvern:Notify(config)
+end
+
+
+function Wyvern:Confirm(config)
+	config = config or {}
+	return Modal.Confirm(config, self._theme, nil)
 end
 end)
 

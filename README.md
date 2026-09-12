@@ -340,3 +340,37 @@ library.Icons.SetAsset("Settings", "rbxassetid://YOUR_REAL_ID")
 ```
 
 Do not invent placeholder asset IDs.
+
+
+## Public API (VNext)
+
+```lua
+local library = (loadstring or load)(game:HttpGet(
+  "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/dist/Wyvern.lua"
+))()
+
+local window = library:CreateWindow({ Name = "Wyvern", Version = "1.0.0" })
+-- aliases: window:AddTab, tab:AddSection, section:AddToggle / AddSlider / ...
+
+local tab = window:AddTab({ Name = "Main" })
+local section = tab:AddSection({ Name = "Controls" })
+
+section:AddToggle({ Name = "Enabled", Default = true, Callback = function(v) end })
+section:AddSlider({ Name = "Opacity", Min = 0, Max = 100, Default = 80, Callback = function(v) end })
+section:AddDropdown({ Name = "Mode", Options = {"A","B"}, Default = "A", Callback = function(v) end })
+section:AddMultiDropdown({ Name = "Features", Options = {"X","Y"}, Callback = function(v) end })
+section:AddTextbox({ Name = "Name", Placeholder = "...", Callback = function(v) end })
+section:AddKeybind({ Name = "Key", Callback = function(k) end })
+section:AddColorPicker({ Name = "Accent", Callback = function(c) end })
+section:AddButton({ Name = "Action", Callback = function() end })
+section:AddProgressBar({ Name = "Load", Default = 40 })
+section:AddFeature({ Name = "Group", Description = "Nested controls" })
+
+library:Notify({ Title = "Wyvern", Text = "Ready", Duration = 3 })
+library:Confirm({ Title = "Sure?", Description = "Demo", Callback = function(ok) end })
+library:GetFlag / SetFlag / ResetFlags
+```
+
+`Create*` methods remain supported. There is **no** Azure `create_module` API.
+
+Showcase: `examples/Showcase.lua`

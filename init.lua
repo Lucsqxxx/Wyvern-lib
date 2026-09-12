@@ -19,6 +19,7 @@ local Icons = require(script.Icons.Registry)
 local SakuraTheme = require(script.Themes.Sakura)
 local Flags = require(script.Core.Flags)
 local Notification = require(script.Core.Notification)
+local Modal = require(script.Core.Modal)
 
 local Wyvern = {
 	_version = "1.0.0",
@@ -110,4 +111,10 @@ end
 
 function Wyvern.SendNotification(config)
 	return Wyvern:Notify(config)
+end
+
+
+function Wyvern:Confirm(config)
+	config = config or {}
+	return Modal.Confirm(config, self._theme, nil)
 end

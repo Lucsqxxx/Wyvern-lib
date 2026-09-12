@@ -134,3 +134,7 @@ function Tab:Destroy()
 end
 
 return Tab
+
+function Tab:AddSection(config)
+	return self:CreateSection(config)
+end
