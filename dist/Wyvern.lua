@@ -1338,13 +1338,23 @@ function Icons.Create(parent, name, options)
 	img.ZIndex = z + 1
 	img.Parent = holder
 
-	local source = Icons.AssetIds[name] or AssetProvider.Resolve(name)
-	if source then
+	local source = Icons.AssetIds[name]
+	if type(source) ~= "string" or source == "" then
+		local ok, resolved = pcall(AssetProvider.Resolve, name)
+		if ok and type(resolved) == "string" and resolved ~= "" then
+			source = resolved
+		else
+			source = nil
+		end
+	end
+	if type(source) == "string" and source ~= "" then
 		img.Image = source
 	else
+		-- Never assign nil to Image (ContentId expected)
 		img.Image = ""
+		img.Visible = false
 		if Icons.AllowVectorFallback then
-			-- Explicit opt-in only
+			img.Visible = false
 			local vectorHolder = Renderer.Create(holder, name, options)
 			vectorHolder.Size = UDim2.fromScale(1, 1)
 		end
@@ -4582,7 +4592,10 @@ function Window.new(config, theme, scale)
 	logo.Size = UDim2.fromOffset(18, 18)
 	logo.Position = UDim2.new(0, 12, 0.5, -9)
 	logo.BackgroundTransparency = 1
-	logo.Image = Icons.Get("Sakura")
+	do
+		local src = Icons.Get("Home") or Icons.Get("Settings")
+		logo.Image = (type(src) == "string" and src ~= "") and src or ""
+	end
 	logo.ImageColor3 = theme:Get("Accent")
 	logo.Parent = header
 
@@ -4755,7 +4768,10 @@ function Window.new(config, theme, scale)
 	searchIcon.Size = UDim2.fromOffset(14, 14)
 	searchIcon.Position = UDim2.new(0, 10, 0.5, -7)
 	searchIcon.BackgroundTransparency = 1
-	searchIcon.Image = Icons.Get("Search")
+	do
+		local src = Icons.Get("Search")
+		searchIcon.Image = (type(src) == "string" and src ~= "") and src or ""
+	end
 	searchIcon.ImageColor3 = theme:Get("TextSecondary")
 	searchIcon.Parent = searchFrame
 

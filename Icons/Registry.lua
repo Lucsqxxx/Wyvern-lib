@@ -63,13 +63,23 @@ function Icons.Create(parent, name, options)
 	img.ZIndex = z + 1
 	img.Parent = holder
 
-	local source = Icons.AssetIds[name] or AssetProvider.Resolve(name)
-	if source then
+	local source = Icons.AssetIds[name]
+	if type(source) ~= "string" or source == "" then
+		local ok, resolved = pcall(AssetProvider.Resolve, name)
+		if ok and type(resolved) == "string" and resolved ~= "" then
+			source = resolved
+		else
+			source = nil
+		end
+	end
+	if type(source) == "string" and source ~= "" then
 		img.Image = source
 	else
+		-- Never assign nil to Image (ContentId expected)
 		img.Image = ""
+		img.Visible = false
 		if Icons.AllowVectorFallback then
-			-- Explicit opt-in only
+			img.Visible = false
 			local vectorHolder = Renderer.Create(holder, name, options)
 			vectorHolder.Size = UDim2.fromScale(1, 1)
 		end
