@@ -20,6 +20,13 @@ local Icons = {
 	Sakura = "rbxassetid://6031094670",
 	Check = "rbxassetid://6031094667",
 	Lock = "rbxassetid://6031094678",
+	Home = "rbxassetid://6031094670",
+	Chevron = "rbxassetid://6031094678",
+	Palette = "rbxassetid://6031280882",
+	Reset = "rbxassetid://6031094678",
+	Center = "rbxassetid://6031094667",
+	Glass = "rbxassetid://6031075931",
+	Back = "rbxassetid://6031094670",
 }
 
 function Icons.Get(name)

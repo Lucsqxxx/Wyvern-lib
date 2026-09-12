@@ -428,6 +428,13 @@ local Icons = {
 	Sakura = "rbxassetid://6031094670",
 	Check = "rbxassetid://6031094667",
 	Lock = "rbxassetid://6031094678",
+	Home = "rbxassetid://6031094670",
+	Chevron = "rbxassetid://6031094678",
+	Palette = "rbxassetid://6031280882",
+	Reset = "rbxassetid://6031094678",
+	Center = "rbxassetid://6031094667",
+	Glass = "rbxassetid://6031075931",
+	Back = "rbxassetid://6031094670",
 }
 
 function Icons.Get(name)
@@ -3264,6 +3271,10 @@ function Window.new(config, theme, scale)
 		_dragStart = nil,
 		_startAbs = nil, -- AbsolutePosition at drag start
 		_destroyed = false,
+		_opacity = 1,
+		_glass = false,
+		_animationsEnabled = true,
+		_autoClosePopups = true,
 		_savedPosition = nil, -- UDim2 offset-only while normal
 	}, Window)
 
@@ -3612,6 +3623,7 @@ function Window.new(config, theme, scale)
 	secondary.Size = UDim2.fromOffset(200, 34)
 	secondary.BackgroundColor3 = theme:Get("NavBackground")
 	secondary.BorderSizePixel = 0
+	secondary.Active = false
 	secondary.Parent = screenGui
 	self._secondary = secondary
 
@@ -3795,6 +3807,57 @@ function Window:_selectSecondary(index)
 	end
 end
 
+function Window:SetOpacity(opacity)
+	if self._destroyed then return end
+	-- opacity 1 = fully opaque, 0.4 = more glass
+	self._opacity = math.clamp(tonumber(opacity) or 1, 0.4, 1)
+	local trans = 1 - self._opacity
+	if self._main then
+		self._main.BackgroundTransparency = trans * 0.15
+	end
+	if self._searchFrame then
+		self._searchFrame.BackgroundTransparency = trans * 0.25
+	end
+	if self._bottomNav then
+		self._bottomNav.BackgroundTransparency = trans * 0.2
+	end
+	if self._secondary then
+		self._secondary.BackgroundTransparency = trans * 0.2
+	end
+end
+
+function Window:GetOpacity()
+	return self._opacity or 1
+end
+
+function Window:ResetAppearance()
+	if self._destroyed or not self._theme then return end
+	local Sakura = {
+		Background = Color3.fromRGB(18, 14, 24),
+		Surface = Color3.fromRGB(30, 24, 38),
+		SurfaceSecondary = Color3.fromRGB(38, 30, 48),
+		SurfaceHover = Color3.fromRGB(48, 38, 60),
+		Accent = Color3.fromRGB(255, 110, 175),
+		AccentHover = Color3.fromRGB(255, 135, 190),
+		AccentPressed = Color3.fromRGB(220, 85, 150),
+		Text = Color3.fromRGB(235, 230, 245),
+		TextSecondary = Color3.fromRGB(165, 155, 180),
+		TextDisabled = Color3.fromRGB(100, 90, 115),
+		Border = Color3.fromRGB(50, 40, 65),
+		SliderTrack = Color3.fromRGB(40, 32, 52),
+		SliderFill = Color3.fromRGB(255, 110, 175),
+		ToggleOff = Color3.fromRGB(55, 45, 70),
+		ToggleOn = Color3.fromRGB(255, 110, 175),
+		Button = Color3.fromRGB(42, 34, 55),
+		ButtonHover = Color3.fromRGB(55, 44, 70),
+		NavBackground = Color3.fromRGB(25, 20, 32),
+		Shadow = Color3.fromRGB(0, 0, 0),
+	}
+	self._theme:Apply(Sakura)
+	self:_applyChromeTheme()
+	self:SetOpacity(1)
+end
+
 function Window:OpenSettings()
 	if self._destroyed then
 		return
@@ -3805,83 +3868,105 @@ function Window:OpenSettings()
 	pcall(function()
 		PopupManager.CloseAll()
 	end)
-	-- Create settings tab once
 	if self._settingsTab and not self._settingsTab._destroyed then
 		self._settingsTab:Select()
 		return
 	end
 	local tab = self:CreateTab({ Name = "Settings", Icon = "Settings" })
 	self._settingsTab = tab
-	local section = tab:CreateSection({ Name = "Appearance", Column = "Left" })
-	local section2 = tab:CreateSection({ Name = "Behavior", Column = "Right" })
+	local appearance = tab:CreateSection({ Name = "Appearance", Column = "Left" })
+	local behavior = tab:CreateSection({ Name = "Behavior", Column = "Right" })
+	local windowSec = tab:CreateSection({ Name = "Window", Column = "Left" })
 
-	section:CreateSlider({
+	appearance:CreateSlider({
 		Name = "UI Scale",
 		Min = 0.7,
 		Max = 1.4,
 		Default = self._scale or 1,
 		Increment = 0.05,
 		Callback = function(v)
+			-- Scale only — does not rewrite Position
 			self:SetScale(v)
 		end,
 	})
 
-	section:CreateColorPicker({
+	appearance:CreateSlider({
+		Name = "UI Opacity",
+		Min = 0.4,
+		Max = 1,
+		Default = self._opacity or 1,
+		Increment = 0.05,
+		Callback = function(v)
+			self:SetOpacity(v)
+		end,
+	})
+
+	-- Accent only affects accent tokens (NOT Background)
+	appearance:CreateColorPicker({
 		Name = "Accent",
 		Default = self._theme and self._theme:Get("Accent") or Color3.fromRGB(255, 110, 175),
 		Callback = function(c)
 			if self._theme then
 				self._theme:Set("Accent", c)
+				self._theme:Set("AccentHover", c)
 				self._theme:Set("ToggleOn", c)
 				self._theme:Set("SliderFill", c)
 			end
-			-- Update header logo accent if present
 			local logo = self._header and self._header:FindFirstChild("Logo")
-			if logo then
-				logo.ImageColor3 = c
-			end
+			if logo then logo.ImageColor3 = c end
 		end,
 	})
 
-	section:CreateColorPicker({
+	appearance:CreateColorPicker({
 		Name = "Background",
 		Default = self._theme and self._theme:Get("Background") or Color3.fromRGB(18, 14, 24),
 		Callback = function(c)
-			if self._theme then
-				self._theme:Set("Background", c)
-			end
-			if self._main then
-				self._main.BackgroundColor3 = c
-			end
+			if self._theme then self._theme:Set("Background", c) end
+			if self._main then self._main.BackgroundColor3 = c end
 		end,
 	})
 
-	section:CreateColorPicker({
+	appearance:CreateColorPicker({
 		Name = "Surface",
 		Default = self._theme and self._theme:Get("Surface") or Color3.fromRGB(30, 24, 38),
 		Callback = function(c)
 			if self._theme then
 				self._theme:Set("Surface", c)
+				self._theme:Set("SurfaceSecondary", c)
 			end
 		end,
 	})
 
-	section2:CreateToggle({
+	behavior:CreateToggle({
 		Name = "Auto-close Popups",
-		Default = true,
+		Default = self._autoClosePopups ~= false,
 		Callback = function(v)
 			self._autoClosePopups = v
 		end,
 	})
 
-	section2:CreateButton({
-		Name = "Reset Scale",
-		Callback = function()
-			self:SetScale(1)
+	behavior:CreateToggle({
+		Name = "Glass Effect",
+		Default = false,
+		Callback = function(v)
+			self._glass = v
+			if v then
+				self:SetOpacity(math.min(self:GetOpacity(), 0.85))
+			else
+				self:SetOpacity(1)
+			end
 		end,
 	})
 
-	section2:CreateButton({
+	behavior:CreateToggle({
+		Name = "Animations",
+		Default = true,
+		Callback = function(v)
+			self._animationsEnabled = v
+		end,
+	})
+
+	windowSec:CreateButton({
 		Name = "Center Window",
 		Callback = function()
 			if self._main then
@@ -3893,8 +3978,22 @@ function Window:OpenSettings()
 		end,
 	})
 
-	section2:CreateButton({
-		Name = "Close Settings Tab",
+	windowSec:CreateButton({
+		Name = "Reset Scale",
+		Callback = function()
+			self:SetScale(1)
+		end,
+	})
+
+	windowSec:CreateButton({
+		Name = "Reset Appearance",
+		Callback = function()
+			self:ResetAppearance()
+		end,
+	})
+
+	windowSec:CreateButton({
+		Name = "Close Settings",
 		Callback = function()
 			if self._tabs[1] then
 				self._tabs[1]:Select()
@@ -4051,6 +4150,7 @@ function Window:SetScale(scale)
 	if self._destroyed then
 		return
 	end
+	-- Authoritative scale only. Does NOT rewrite Position (prevents jump feedback loops).
 	self._scale = math.clamp(tonumber(scale) or 1, 0.5, 2)
 	if self._uiScale then
 		self._uiScale.Scale = self._scale
