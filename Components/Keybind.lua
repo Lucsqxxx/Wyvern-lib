@@ -93,6 +93,7 @@ function Keybind.new(config, parent, theme, inputManager)
 	end
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -131,6 +132,27 @@ end
 function Keybind:SetEnabled(enabled)
 	self._enabled = enabled
 	self._label.TextColor3 = enabled and self._theme:Get("Text") or self._theme:Get("TextDisabled")
+end
+
+function Keybind:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then
+		self._label.TextColor3 = self._enabled and theme:Get("Text") or theme:Get("TextDisabled")
+	end
+	if self._keyBox then
+		self._keyBox.BackgroundColor3 = theme:Get("SurfaceSecondary")
+		local stroke = self._keyBox:FindFirstChildOfClass("UIStroke")
+		if stroke then stroke.Color = theme:Get("Border") end
+	end
+	if self._keyText then
+		if self._listening then
+			self._keyText.TextColor3 = theme:Get("Accent")
+		else
+			self._keyText.TextColor3 = theme:Get("Text")
+		end
+	end
 end
 
 return Keybind

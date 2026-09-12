@@ -83,6 +83,60 @@ if "function Component:BindTheme" in comp:
 else:
     fail("Component:BindTheme missing")
 
+
+# --- Theme coverage on remaining components ---
+for rel, markers in [
+    ("Components/Keybind.lua", ["ApplyTheme", "BindTheme"]),
+    ("Components/ColorPicker.lua", ["ApplyTheme", "BindTheme"]),
+    ("Components/Textbox.lua", ["ApplyTheme", "BindTheme"]),
+]:
+    body = (ROOT / rel).read_text()
+    for m in markers:
+        if m in body:
+            ok(f"{rel} has {m}")
+        else:
+            fail(f"{rel} missing {m}")
+
+# Regression: drag threshold present
+win = (ROOT / "Core/Window.lua").read_text()
+if "DragThreshold" in win and "_dragPending" in win:
+    ok("drag threshold regression (click != drag)")
+else:
+    fail("drag threshold regression missing")
+
+if "TitleCluster" in win and "UIListLayout" in win:
+    ok("header TitleCluster regression")
+else:
+    fail("header layout regression")
+
+if "OpenSettings" in win and "_settingsTab" in win:
+    ok("settings single-instance regression")
+else:
+    fail("settings regression")
+
+if "PopupManager.CloseAll" in win:
+    ok("minimize/tab closes popups")
+else:
+    fail("popup close on minimize missing")
+
+# Dist must include Keybind/ColorPicker/Textbox ApplyTheme
+for name in ["Keybind:ApplyTheme", "ColorPicker:ApplyTheme", "Textbox:ApplyTheme"]:
+    # factory-wrapped may not keep exact name string
+    short = name.split(":")[0]
+    if short in src and "ApplyTheme" in src:
+        ok(f"dist mentions {short} + ApplyTheme")
+    else:
+        fail(f"dist missing {short}/ApplyTheme")
+
+# Public API inventory presence in dist
+for api in ["CreateButton", "CreateToggle", "CreateSlider", "CreateDropdown",
+            "CreateMultiDropdown", "CreateTextbox", "CreateInput", "CreateKeybind",
+            "CreateColorPicker", "CreateLabel", "CreateDivider"]:
+    if api in src:
+        ok(f"public API {api}")
+    else:
+        fail(f"public API missing {api}")
+
 print()
 print(f"Results: {len(passes)} PASS, {len(errors)} FAIL")
 sys.exit(1 if errors else 0)

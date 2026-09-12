@@ -60,6 +60,7 @@ function ColorPicker.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -70,6 +71,26 @@ function ColorPicker:Set(color)
 	for _, cb in ipairs(self._callbacks) do
 		task.spawn(cb, color)
 	end
+end
+
+function ColorPicker:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	local label = self._instance and self._instance:FindFirstChild("Label")
+	if not label and self._instance then
+		label = self._instance:FindFirstChildOfClass("TextLabel")
+	end
+	if label then label.TextColor3 = theme:Get("Text") end
+	-- swatch keeps chosen color; border can update
+	if self._swatch then
+		local stroke = self._swatch:FindFirstChildOfClass("UIStroke")
+		if stroke then stroke.Color = theme:Get("Border") end
+	end
+end
+
+function ColorPicker:Get()
+	return self._value
 end
 
 return ColorPicker

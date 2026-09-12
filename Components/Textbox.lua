@@ -53,6 +53,7 @@ function Textbox.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -63,6 +64,23 @@ function Textbox:Set(value)
 	for _, cb in ipairs(self._callbacks) do
 		task.spawn(cb, self._value)
 	end
+end
+
+function Textbox:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	local label = self._instance and self._instance:FindFirstChildOfClass("TextLabel")
+	if label then label.TextColor3 = theme:Get("Text") end
+	if self._box then
+		self._box.BackgroundColor3 = theme:Get("SurfaceSecondary")
+		self._box.TextColor3 = theme:Get("Text")
+		self._box.PlaceholderColor3 = theme:Get("TextDisabled")
+	end
+end
+
+function Textbox:Get()
+	return self._value
 end
 
 return Textbox

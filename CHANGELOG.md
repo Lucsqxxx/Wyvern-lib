@@ -1,3 +1,9 @@
+## [1.0.3]
+
+### Fixed
+- Keybind, ColorPicker, Textbox full ApplyTheme/BindTheme
+- Expanded regression suite (47 static checks)
+
 ## [1.0.2]
 
 ### Fixed / Completed
