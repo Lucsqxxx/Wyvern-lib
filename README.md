@@ -316,3 +316,27 @@ Bottom-nav **Settings** (last icon) opens a real Settings tab:
 - Center window / Reset scale
 
 Theme changes notify subscribed components without recreating the window.
+
+
+## Icons (GitHub source of truth)
+
+Cropped artwork lives in the repository:
+
+```
+assets/icons/*.png
+```
+
+Example raw URL:
+
+```
+https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/settings.png
+```
+
+**Roblox note:** `ImageLabel.Image` does **not** accept arbitrary HTTPS URLs. The standalone `dist/Wyvern.lua` therefore renders icons with the built-in vector `Icons.Renderer` (matching the sheet style). To use the exact PNG pixels in-game, upload a file from `assets/icons/` to Roblox and register it:
+
+```lua
+-- only after you have a real uploaded asset:
+library.Icons.SetAsset("Settings", "rbxassetid://YOUR_REAL_ID")
+```
+
+Do not invent placeholder asset IDs.

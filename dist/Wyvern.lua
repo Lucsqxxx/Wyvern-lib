@@ -1041,35 +1041,99 @@ end)
 
 __wyvern_define("Icons.Registry", function()
 -- Icons/Registry.lua
--- Central icon provider.
--- Runtime rendering uses Icons.Renderer (vector primitives matching the Wyvern icon sheet).
--- Cropped sheet artwork is stored under assets/icons/*.png for documentation and
--- optional Roblox asset upload (ImageLabel requires rbxassetid — not embeddable in loadstring).
+-- Canonical icon artwork lives in the GitHub repository:
+--   assets/icons/<name>.png
+-- Raw URL pattern:
+--   https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons/<name>.png
+--
+-- Roblox ImageLabel/ImageButton cannot load arbitrary HTTPS URLs as Image.
+-- Runtime therefore uses Icons.Renderer (vector primitives matching the sheet).
+-- Optional: after uploading a PNG to Roblox Creator, set AssetIds[Name] = "rbxassetid://...".
+-- Never invent placeholder asset IDs.
 
 local Renderer = __wyvern_require("Icons.Renderer")
 
+local REPO_RAW = "https://raw.githubusercontent.com/Lucsqxxx/Wyvern-lib/main/assets/icons"
+
+local FILE_MAP = {
+	Back = "back.png",
+	Forward = "forward.png",
+	ChevronLeft = "chevron_left.png",
+	ChevronRight = "chevron_right.png",
+	ChevronDown = "chevron_down.png",
+	ChevronUp = "chevron_up.png",
+	Minimize = "minimize.png",
+	Maximize = "maximize.png",
+	Fullscreen = "fullscreen.png",
+	Close = "close.png",
+	Search = "search.png",
+	Eye = "eye.png",
+	Check = "check.png",
+	CheckboxEmpty = "checkbox_empty.png",
+	CheckboxChecked = "checkbox_checked.png",
+	Reset = "reset.png",
+	Center = "center.png",
+	Info = "info.png",
+	User = "user.png",
+	Settings = "settings.png",
+	Home = "home.png",
+	Palette = "palette.png",
+	Scale = "scale.png",
+	Glass = "glass.png",
+	Checklist = "checklist.png",
+	Plus = "plus.png",
+	Minus = "minus.png",
+	Input = "input.png",
+	Textbox = "textbox.png",
+	Keybind = "keybind.png",
+	DropdownDown = "dropdown_down.png",
+	DropdownUp = "dropdown_up.png",
+	DockHome = "dock_home.png",
+	DockTab1 = "dock_tab1.png",
+	DockTab2 = "dock_tab2.png",
+	DockAbout = "dock_about.png",
+	DockSettings = "dock_settings.png",
+}
+
 local Icons = {
 	Renderer = Renderer,
-	-- Optional: after uploading assets/icons/*.png to Roblox, set IDs here.
-	AssetIds = {
-		-- Search = "rbxassetid://123",
-	},
-	SheetNames = {
-		"Back", "Forward", "ChevronLeft", "ChevronRight", "ChevronDown", "ChevronUp",
-		"Minimize", "Maximize", "Fullscreen", "Close", "Search", "Eye",
-		"Check", "CheckboxEmpty", "CheckboxChecked", "Reset", "Center", "Info",
-		"User", "Settings", "Home", "Palette", "Scale", "Glass",
-		"Checklist", "Plus", "Minus", "Input", "Textbox", "Keybind",
-		"DropdownDown", "DropdownUp", "Lock", "Notification", "Favorite", "Link", "Delete",
-	},
+	RepoRawBase = REPO_RAW,
+	Files = FILE_MAP,
+	-- Only verified Roblox asset IDs (empty by default — no fakes)
+	AssetIds = {},
 }
+
+function Icons.GetGitHubUrl(name)
+	local file = FILE_MAP[name]
+	if not file then
+		return nil
+	end
+	return REPO_RAW .. "/" .. file
+end
+
+function Icons.Get(name)
+	local id = Icons.AssetIds[name]
+	if type(id) == "string" and id ~= "" then
+		return id
+	end
+	return nil
+end
+
+function Icons.SetAsset(name, assetId)
+	if type(name) ~= "string" or type(assetId) ~= "string" then
+		return
+	end
+	if not string.match(assetId, "^rbxassetid://%d+$") then
+		warn("[Wyvern Icons] refusing non-rbxassetid value for", name)
+		return
+	end
+	Icons.AssetIds[name] = assetId
+end
 
 function Icons.Create(parent, name, options)
 	options = options or {}
-	-- Prefer vector renderer (self-contained in dist/loadstring).
-	-- If AssetIds[name] is set, ImageLabel path can be used by host apps.
-	local assetId = Icons.AssetIds[name]
-	if type(assetId) == "string" and assetId ~= "" and assetId ~= "rbxassetid://0" then
+	local assetId = Icons.Get(name)
+	if assetId then
 		local holder = Instance.new("Frame")
 		holder.Name = "Icon_" .. tostring(name)
 		holder.BackgroundTransparency = 1
@@ -1088,41 +1152,38 @@ function Icons.Create(parent, name, options)
 		holder:SetAttribute("IconName", name)
 		return holder
 	end
+	-- Self-contained runtime path (loadstring dist): vector matching the sheet language
 	return Renderer.Create(parent, name, options)
 end
 
-function Icons.Get(name)
-	return Icons.AssetIds[name] or "rbxassetid://0"
-end
-
-function Icons.SetAsset(name, assetId)
-	if type(name) == "string" and type(assetId) == "string" then
-		Icons.AssetIds[name] = assetId
-	end
-end
-
 function Icons.SetColor(holder, color)
-	if not holder then return end
+	if not holder then
+		return
+	end
 	local img = holder:FindFirstChildWhichIsA("ImageLabel", true)
 	if img then
 		img.ImageColor3 = color
 		return
 	end
 	local root = holder:FindFirstChild("IconRoot")
-	if not root then return end
+	if not root then
+		return
+	end
 	for _, d in ipairs(root:GetDescendants()) do
 		if d:IsA("Frame") then
 			if d.BackgroundTransparency < 1 then
 				d.BackgroundColor3 = color
 			end
 			local stroke = d:FindFirstChildOfClass("UIStroke")
-			if stroke then stroke.Color = color end
+			if stroke then
+				stroke.Color = color
+			end
 		end
 	end
 end
 
 function Icons.Has(name)
-	return Renderer.Builders[name] ~= nil or Icons.AssetIds[name] ~= nil
+	return FILE_MAP[name] ~= nil or Renderer.Builders[name] ~= nil
 end
 
 return Icons
