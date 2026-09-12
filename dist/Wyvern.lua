@@ -1274,36 +1274,56 @@ end)
 
 __wyvern_define("Icons.Registry", function()
 -- Icons/Registry.lua
--- Image-first icon system. GitHub PNGs are source of truth (assets/icons/).
--- Runtime resolves via Icons/AssetProvider when custom-asset APIs exist.
+-- Image-first when AssetProvider can resolve a ContentId.
+-- Safe: never assigns nil/non-string to ImageLabel.Image.
 
 local AssetProvider = __wyvern_require("Icons.AssetProvider")
--- Vector renderer kept ONLY as explicit offline fallback (disabled by default)
 local Renderer = __wyvern_require("Icons.Renderer")
 
 local Icons = {
 	AssetProvider = AssetProvider,
 	Renderer = Renderer,
-	-- AllowVectorFallback = false by default
-	AllowVectorFallback = false,
+	-- When image ContentId cannot be resolved, use vector geometry so UI still works.
+	AllowVectorFallback = true,
 	RepoRawBase = AssetProvider.RepoRaw,
 	Files = AssetProvider.FileMap,
-	AssetIds = {}, -- optional verified rbxassetid overrides only
+	AssetIds = {},
 }
+
+local function isValidContentId(s)
+	return type(s) == "string" and s ~= "" and s ~= "nil"
+end
+
+local function safeSetImage(img, source)
+	if not img then
+		return false
+	end
+	if not isValidContentId(source) then
+		return false
+	end
+	local ok = pcall(function()
+		img.Image = source
+	end)
+	return ok
+end
 
 function Icons.GetGitHubUrl(name)
 	return AssetProvider.GetGitHubUrl(name)
 end
 
 function Icons.Get(name)
-	if Icons.AssetIds[name] then
+	if isValidContentId(Icons.AssetIds[name]) then
 		return Icons.AssetIds[name]
 	end
-	return AssetProvider.Resolve(name)
+	local ok, resolved = pcall(AssetProvider.Resolve, name)
+	if ok and isValidContentId(resolved) then
+		return resolved
+	end
+	return nil
 end
 
 function Icons.SetAsset(name, assetId)
-	if type(name) ~= "string" or type(assetId) ~= "string" then
+	if type(name) ~= "string" or not isValidContentId(assetId) then
 		return
 	end
 	if not string.match(assetId, "^rbxassetid://%d+$") then
@@ -1327,37 +1347,36 @@ function Icons.Create(parent, name, options)
 	holder.Parent = parent
 	holder:SetAttribute("IconName", name)
 
-	local img = Instance.new("ImageLabel")
-	img.Name = "Image"
-	img.BackgroundTransparency = 1
-	img.Size = UDim2.fromOffset(size, size)
-	img.Position = UDim2.fromScale(0.5, 0.5)
-	img.AnchorPoint = Vector2.new(0.5, 0.5)
-	img.ScaleType = Enum.ScaleType.Fit
-	img.ImageColor3 = color
-	img.ZIndex = z + 1
-	img.Parent = holder
-
-	local source = Icons.AssetIds[name]
-	if type(source) ~= "string" or source == "" then
-		local ok, resolved = pcall(AssetProvider.Resolve, name)
-		if ok and type(resolved) == "string" and resolved ~= "" then
-			source = resolved
-		else
-			source = nil
+	local source = Icons.Get(name)
+	if isValidContentId(source) then
+		local img = Instance.new("ImageLabel")
+		img.Name = "Image"
+		img.BackgroundTransparency = 1
+		img.Size = UDim2.fromOffset(size, size)
+		img.Position = UDim2.fromScale(0.5, 0.5)
+		img.AnchorPoint = Vector2.new(0.5, 0.5)
+		img.ScaleType = Enum.ScaleType.Fit
+		img.ImageColor3 = color
+		img.ZIndex = z + 1
+		img.Parent = holder
+		if not safeSetImage(img, source) then
+			img:Destroy()
+			if Icons.AllowVectorFallback then
+				Renderer.Create(holder, name, {
+					Size = size,
+					Color = color,
+					Theme = options.Theme,
+					ZIndex = z + 1,
+				})
+			end
 		end
-	end
-	if type(source) == "string" and source ~= "" then
-		img.Image = source
-	else
-		-- Never assign nil to Image (ContentId expected)
-		img.Image = ""
-		img.Visible = false
-		if Icons.AllowVectorFallback then
-			img.Visible = false
-			local vectorHolder = Renderer.Create(holder, name, options)
-			vectorHolder.Size = UDim2.fromScale(1, 1)
-		end
+	elseif Icons.AllowVectorFallback then
+		Renderer.Create(holder, name, {
+			Size = size,
+			Color = color,
+			Theme = options.Theme,
+			ZIndex = z + 1,
+		})
 	end
 
 	return holder
@@ -1372,7 +1391,6 @@ function Icons.SetColor(holder, color)
 		img.ImageColor3 = color
 		return
 	end
-	-- vector fallback children if any
 	local root = holder:FindFirstChild("IconRoot")
 	if root then
 		for _, d in ipairs(root:GetDescendants()) do
@@ -4592,11 +4610,13 @@ function Window.new(config, theme, scale)
 	logo.Size = UDim2.fromOffset(18, 18)
 	logo.Position = UDim2.new(0, 12, 0.5, -9)
 	logo.BackgroundTransparency = 1
-	do
-		local src = Icons.Get("Home") or Icons.Get("Settings")
-		logo.Image = (type(src) == "string" and src ~= "") and src or ""
-	end
 	logo.ImageColor3 = theme:Get("Accent")
+	pcall(function()
+		local src = Icons.Get("Home") or Icons.Get("Settings")
+		if type(src) == "string" and src ~= "" then
+			logo.Image = src
+		end
+	end)
 	logo.Parent = header
 
 	-- Left title cluster: Title + Version via layout (no overlap)
@@ -4768,11 +4788,13 @@ function Window.new(config, theme, scale)
 	searchIcon.Size = UDim2.fromOffset(14, 14)
 	searchIcon.Position = UDim2.new(0, 10, 0.5, -7)
 	searchIcon.BackgroundTransparency = 1
-	do
-		local src = Icons.Get("Search")
-		searchIcon.Image = (type(src) == "string" and src ~= "") and src or ""
-	end
 	searchIcon.ImageColor3 = theme:Get("TextSecondary")
+	pcall(function()
+		local src = Icons.Get("Search")
+		if type(src) == "string" and src ~= "" then
+			searchIcon.Image = src
+		end
+	end)
 	searchIcon.Parent = searchFrame
 
 	local searchBox = Instance.new("TextBox")

@@ -210,11 +210,13 @@ function Window.new(config, theme, scale)
 	logo.Size = UDim2.fromOffset(18, 18)
 	logo.Position = UDim2.new(0, 12, 0.5, -9)
 	logo.BackgroundTransparency = 1
-	do
-		local src = Icons.Get("Home") or Icons.Get("Settings")
-		logo.Image = (type(src) == "string" and src ~= "") and src or ""
-	end
 	logo.ImageColor3 = theme:Get("Accent")
+	pcall(function()
+		local src = Icons.Get("Home") or Icons.Get("Settings")
+		if type(src) == "string" and src ~= "" then
+			logo.Image = src
+		end
+	end)
 	logo.Parent = header
 
 	-- Left title cluster: Title + Version via layout (no overlap)
@@ -386,11 +388,13 @@ function Window.new(config, theme, scale)
 	searchIcon.Size = UDim2.fromOffset(14, 14)
 	searchIcon.Position = UDim2.new(0, 10, 0.5, -7)
 	searchIcon.BackgroundTransparency = 1
-	do
-		local src = Icons.Get("Search")
-		searchIcon.Image = (type(src) == "string" and src ~= "") and src or ""
-	end
 	searchIcon.ImageColor3 = theme:Get("TextSecondary")
+	pcall(function()
+		local src = Icons.Get("Search")
+		if type(src) == "string" and src ~= "" then
+			searchIcon.Image = src
+		end
+	end)
 	searchIcon.Parent = searchFrame
 
 	local searchBox = Instance.new("TextBox")
