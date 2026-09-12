@@ -133,8 +133,7 @@ function Tab:Destroy()
 	setmetatable(self, nil)
 end
 
-return Tab
-
 function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
+return Tab

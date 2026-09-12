@@ -1209,13 +1209,6 @@ builders.Scale = builders.Layers
 builders.Glass = builders.Cube
 builders.Center = builders.Target
 builders.Lock = builders.Cube
-builders.DropdownDown = builders.ChevronDown
-builders.DropdownUp = builders.ChevronUp
-builders.DockHome = builders.Home
-builders.DockTab1 = builders.Checklist
-builders.DockTab2 = builders.Layers
-builders.DockAbout = builders.Info
-builders.DockSettings = builders.Settings
 
 --- Create an icon inside parent. Returns root Frame and SetColor(color) helper.
 function Renderer.Create(parent, name, options)
@@ -1234,9 +1227,7 @@ function Renderer.Create(parent, name, options)
 
 	local r = root(holder, size, z + 1)
 	local builder = builders[name] or builders.Moss
-	if type(builder) == "function" then
-		builder(r, color, size)
-	end
+	builder(r, color, size)
 
 	local api = {}
 	function api:SetColor(c)
@@ -4878,14 +4869,8 @@ local MultiDropdown = __wyvern_require("Components.MultiDropdown")
 local Textbox = __wyvern_require("Components.Textbox")
 local ColorPicker = __wyvern_require("Components.ColorPicker")
 local Divider = __wyvern_require("Components.Divider")
-local Feature = nil
-local ProgressBar = nil
-pcall(function()
-	Feature = __wyvern_require("Components.Feature")
-end)
-pcall(function()
-	ProgressBar = __wyvern_require("Components.ProgressBar")
-end)
+local Feature = __wyvern_require("Components.Feature")
+local ProgressBar = __wyvern_require("Components.ProgressBar")
 local Flags = __wyvern_require("Core.Flags")
 
 local Section = {}
@@ -5086,10 +5071,6 @@ function Section:CreateNotification(config)
 end
 
 function Section:CreateProgressBar(config)
-	if not ProgressBar or not ProgressBar.new then
-		warn("[Wyvern] ProgressBar module unavailable")
-		return nil
-	end
 	local c = ProgressBar.new(config or {}, self._instance, self._theme, self._search, self._input)
 	table.insert(self._components, c)
 	return c
@@ -5100,10 +5081,6 @@ function Section:AddProgressBar(config)
 end
 
 function Section:CreateFeature(config)
-	if not Feature or not Feature.new then
-		warn("[Wyvern] Feature module unavailable")
-		return nil
-	end
 	config = config or {}
 	local feature = Feature.new(config, self._instance, self._theme, self._search, self._input)
 	table.insert(self._components, feature)
@@ -5139,8 +5116,6 @@ function Section:AddDivider(c) return self:CreateDivider(c) end
 function Section:AddSpacer(c) return self:CreateSpacer(c) end
 function Section:AddFeature(c) return self:CreateFeature(c) end
 return Section
-
-
 end)
 
 -- ===== END Core.Section =====
@@ -5287,7 +5262,6 @@ function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
 return Tab
-
 end)
 
 -- ===== END Core.Tab =====
@@ -6515,7 +6489,6 @@ function Window:Center()
 	)
 end
 return Window
-
 end)
 
 -- ===== END Core.Window =====
@@ -6641,23 +6614,10 @@ function Wyvern:Confirm(config)
 	return Modal.Confirm(config, self._theme, nil)
 end
 return Wyvern
-
-
 end)
 
 -- ===== END init =====
 
-
-
--- Compatibility aliases: Core.* component names -> Components.*
-for _, name in ipairs({
-	"Button", "Toggle", "Slider", "Keybind", "Label", "Dropdown",
-	"MultiDropdown", "Textbox", "ColorPicker", "Divider", "Feature", "ProgressBar",
-}) do
-	if __wyvern_modules["Components." .. name] and not __wyvern_modules["Core." .. name] then
-		__wyvern_modules["Core." .. name] = __wyvern_modules["Components." .. name]
-	end
-end
 
 -- Bootstrap public API
 local Wyvern = __wyvern_require("init")

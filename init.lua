@@ -85,9 +85,6 @@ function Wyvern:Notify(config)
 	warn("[Wyvern] Notify: no active window")
 end
 
-return Wyvern
-
-
 function Wyvern:GetFlag(name)
 	return Flags.Get(name)
 end
@@ -118,3 +115,4 @@ function Wyvern:Confirm(config)
 	config = config or {}
 	return Modal.Confirm(config, self._theme, nil)
 end
+return Wyvern

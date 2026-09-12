@@ -61,18 +61,22 @@ def map_require(match, current_key):
 def rewrite_requires(src: str, module_key: str) -> str:
     """
     Replace Roblox ModuleScript requires with __wyvern_require("Module.Key").
+    script.Parent.X resolves relative to the module's folder:
+      Components.* -> Components.X
+      Icons.* -> Icons.X
+      Core.* / Themes.* / default -> Core.X
     """
-    # Patterns used in the codebase:
-    # require(script.Parent.Maid)                    -> Core.Maid (when in Core)
-    # require(script.Parent.Parent.Core.Component)   -> Core.Component
-    # require(script.Parent.Parent.Components.Button)-> Components.Button
-    # require(script.Core.Theme)                     -> Core.Theme (from init)
-    # require(script.Icons.Registry)
-    # require(script.Themes.Sakura)
+    if module_key.startswith("Components."):
+        sibling_ns = "Components"
+    elif module_key.startswith("Icons."):
+        sibling_ns = "Icons"
+    elif module_key.startswith("Themes."):
+        sibling_ns = "Themes"
+    else:
+        sibling_ns = "Core"
 
     lines = []
     for line in src.splitlines():
-        original = line
         # init.lua style
         line = re.sub(
             r'require\(script\.Core\.(\w+)\)',
@@ -89,43 +93,7 @@ def rewrite_requires(src: str, module_key: str) -> str:
             r'__wyvern_require("Themes.\1")',
             line,
         )
-        # Core sibling: script.Parent.X
-        line = re.sub(
-            r'require\(script\.Parent\.AssetIds\)',
-            r'__wyvern_require("Icons.AssetIds")',
-            line,
-        )
-        line = re.sub(
-            r'require\(script\.Parent\.AssetProvider\)',
-            r'__wyvern_require("Icons.AssetProvider")',
-            line,
-        )
-        line = re.sub(
-            r'require\(script\.Parent\.AssetIds\)',
-            r'__wyvern_require("Icons.AssetIds")',
-            line,
-        )
-        line = re.sub(
-            r'require\(script\.Parent\.AssetProvider\)',
-            r'__wyvern_require("Icons.AssetProvider")',
-            line,
-        )
-        line = re.sub(
-            r'require\(script\.Parent\.Renderer\)',
-            r'__wyvern_require("Icons.Renderer")',
-            line,
-        )
-        line = re.sub(
-            r'require\(script\.Parent\.Glyphs\)',
-            r'__wyvern_require("Icons.Glyphs")',
-            line,
-        )
-        line = re.sub(
-            r'require\(script\.Parent\.(\w+)\)',
-            r'__wyvern_require("Core.\1")',
-            line,
-        )
-        # Components / Core from Components: script.Parent.Parent.Core.X
+        # Explicit parent-parent paths first
         line = re.sub(
             r'require\(script\.Parent\.Parent\.Core\.(\w+)\)',
             r'__wyvern_require("Core.\1")',
@@ -141,10 +109,10 @@ def rewrite_requires(src: str, module_key: str) -> str:
             r'__wyvern_require("Icons.\1")',
             line,
         )
-        # Window Icons path: script.Parent.Parent.Icons.Registry
+        # Sibling requires: script.Parent.X -> namespace of current module
         line = re.sub(
-            r'require\(script\.Parent\.Parent\.Icons\.Registry\)',
-            r'__wyvern_require("Icons.Registry")',
+            r'require\(script\.Parent\.(\w+)\)',
+            rf'__wyvern_require("{sibling_ns}.\1")',
             line,
         )
         lines.append(line)
