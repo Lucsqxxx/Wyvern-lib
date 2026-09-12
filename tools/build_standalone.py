@@ -18,6 +18,7 @@ ORDER = [
     ("Core/Constants.lua", "Core.Constants"),
     ("Core/Animation.lua", "Core.Animation"),
     ("Core/Theme.lua", "Core.Theme"),
+    ("Icons/AssetIds.lua", "Icons.AssetIds"),
     ("Icons/AssetProvider.lua", "Icons.AssetProvider"),
     ("Icons/Renderer.lua", "Icons.Renderer"),
     ("Icons/Glyphs.lua", "Icons.Glyphs"),
@@ -86,8 +87,18 @@ def rewrite_requires(src: str, module_key: str) -> str:
         )
         # Core sibling: script.Parent.X
         line = re.sub(
+            r'require\(script\.Parent\.AssetIds\)',
+            r'__wyvern_require("Icons.AssetIds")',
+            line,
+        )
+        line = re.sub(
             r'require\(script\.Parent\.AssetProvider\)',
             r'__wyvern_require("Icons.AssetProvider")',
+            line,
+        )
+        line = re.sub(
+            r'require\(script\.Parent\.AssetIds\)',
+            r'__wyvern_require("Icons.AssetIds")',
             line,
         )
         line = re.sub(

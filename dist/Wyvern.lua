@@ -403,6 +403,27 @@ end)
 
 -- ===== END Core.Theme =====
 
+-- ===== BEGIN Icons.AssetIds (Icons/AssetIds.lua) =====
+
+__wyvern_define("Icons.AssetIds", function()
+-- Icons/AssetIds.lua
+-- Verified Roblox image ContentIds only.
+-- Leave empty until each PNG in assets/icons/ is uploaded to Roblox Creator
+-- and the real asset ID is confirmed. NEVER invent placeholder IDs.
+
+-- Format: Name = "rbxassetid://YOUR_REAL_ID"
+return {
+	-- Search = "rbxassetid://...",
+	-- Back = "rbxassetid://...",
+	-- Minimize = "rbxassetid://...",
+	-- Close = "rbxassetid://...",
+	-- Check = "rbxassetid://...",
+	-- Settings = "rbxassetid://...",
+}
+end)
+
+-- ===== END Icons.AssetIds =====
+
 -- ===== BEGIN Icons.AssetProvider (Icons/AssetProvider.lua) =====
 
 __wyvern_define("Icons.AssetProvider", function()
@@ -1280,14 +1301,19 @@ __wyvern_define("Icons.Registry", function()
 local AssetProvider = __wyvern_require("Icons.AssetProvider")
 local Renderer = __wyvern_require("Icons.Renderer")
 
+local verifiedIds = {}
+pcall(function()
+	verifiedIds = __wyvern_require("Icons.AssetIds") or {}
+end)
+
 local Icons = {
 	AssetProvider = AssetProvider,
 	Renderer = Renderer,
-	-- When image ContentId cannot be resolved, use vector geometry so UI still works.
+	-- Vector only when no verified rbxassetid and custom-asset download unavailable
 	AllowVectorFallback = true,
 	RepoRawBase = AssetProvider.RepoRaw,
 	Files = AssetProvider.FileMap,
-	AssetIds = {},
+	AssetIds = verifiedIds,
 }
 
 local function isValidContentId(s)

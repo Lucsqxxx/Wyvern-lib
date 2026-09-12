@@ -5,14 +5,19 @@
 local AssetProvider = require(script.Parent.AssetProvider)
 local Renderer = require(script.Parent.Renderer)
 
+local verifiedIds = {}
+pcall(function()
+	verifiedIds = require(script.Parent.AssetIds) or {}
+end)
+
 local Icons = {
 	AssetProvider = AssetProvider,
 	Renderer = Renderer,
-	-- When image ContentId cannot be resolved, use vector geometry so UI still works.
+	-- Vector only when no verified rbxassetid and custom-asset download unavailable
 	AllowVectorFallback = true,
 	RepoRawBase = AssetProvider.RepoRaw,
 	Files = AssetProvider.FileMap,
-	AssetIds = {},
+	AssetIds = verifiedIds,
 }
 
 local function isValidContentId(s)
