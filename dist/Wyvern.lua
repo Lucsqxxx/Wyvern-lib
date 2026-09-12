@@ -1864,16 +1864,25 @@ function Toggle.new(config, parent, theme)
 	stroke.Parent = switch
 	self._stroke = stroke
 
-	local check = Instance.new("TextLabel")
+	local check = Instance.new("Frame")
 	check.Name = "Check"
 	check.BackgroundTransparency = 1
 	check.Size = UDim2.new(1, 0, 1, 0)
-	check.Font = Enum.Font.GothamBold
-	check.TextSize = 14
-	check.TextColor3 = Color3.fromRGB(255, 255, 255)
-	check.Text = self._value and "✓" or ""
+	check.Visible = self._value == true
 	check.Parent = switch
 	self._check = check
+	local IconsMod = nil
+	pcall(function()
+		IconsMod = __wyvern_require("Icons.Registry")
+	end)
+	if IconsMod and IconsMod.Create then
+		IconsMod.Create(check, "Check", {
+			Size = 10,
+			Theme = theme,
+			Color = Color3.fromRGB(255, 255, 255),
+			ZIndex = 6,
+		})
+	end
 
 	local button = Instance.new("TextButton")
 	button.Name = "Hitbox"
@@ -1903,7 +1912,7 @@ function Toggle:Set(value)
 	Animation.Toggle(self._switch, {
 		BackgroundColor3 = value and theme:Get("ToggleOn") or theme:Get("ToggleOff"),
 	})
-	self._check.Text = value and "✓" or ""
+	self._check.Visible = value and true or false
 	self._stroke.Transparency = value and 1 or 0.4
 
 	self.ValueChanged:Fire(value)
@@ -4177,9 +4186,10 @@ function Window.new(config, theme, scale)
 	self._screenGui = screenGui
 	self._maid:Give(screenGui)
 
+	-- UIScale is parented to the Window main frame (not ScreenGui) so scaling
+	-- originates at the window top-left and does NOT rewrite logical Position.
 	local uiScale = Instance.new("UIScale")
 	uiScale.Scale = self._scale
-	uiScale.Parent = screenGui
 	self._uiScale = uiScale
 
 	-- Screen-space overlay for dropdowns/popups (above window, not clipped by content)
@@ -4204,6 +4214,9 @@ function Window.new(config, theme, scale)
 	main.Active = true -- receives input so children work; drag is only on handle
 	main.Parent = screenGui
 	self._main = main
+	if self._uiScale then
+		self._uiScale.Parent = main
+	end
 	self._savedPosition = main.Position
 
 	local mainCorner = Instance.new("UICorner")
@@ -4301,24 +4314,20 @@ function Window.new(config, theme, scale)
 	closeBtn.Size = UDim2.fromOffset(28, 28)
 	closeBtn.Position = UDim2.new(1, -34, 0.5, -14)
 	closeBtn.BackgroundTransparency = 1
-	closeBtn.Text = "×"
-	closeBtn.Font = Enum.Font.GothamBold
-	closeBtn.TextSize = 18
-	closeBtn.TextColor3 = theme:Get("TextSecondary")
+	closeBtn.Text = ""
 	closeBtn.ZIndex = 5
 	closeBtn.Parent = header
+	Icons.Create(closeBtn, "Close", { Size = 12, Theme = theme, Color = theme:Get("TextSecondary"), ZIndex = 6 })
 
 	local minBtn = Instance.new("TextButton")
 	minBtn.Name = "Minimize"
 	minBtn.Size = UDim2.fromOffset(28, 28)
 	minBtn.Position = UDim2.new(1, -62, 0.5, -14)
 	minBtn.BackgroundTransparency = 1
-	minBtn.Text = "–"
-	minBtn.Font = Enum.Font.GothamBold
-	minBtn.TextSize = 18
-	minBtn.TextColor3 = theme:Get("TextSecondary")
+	minBtn.Text = ""
 	minBtn.ZIndex = 5
 	minBtn.Parent = header
+	Icons.Create(minBtn, "Minimize", { Size = 12, Theme = theme, Color = theme:Get("TextSecondary"), ZIndex = 6 })
 
 	self._maid:Give(closeBtn.MouseButton1Click:Connect(function()
 		if self._destroyed then
@@ -4705,20 +4714,28 @@ end
 
 function Window:SetOpacity(opacity)
 	if self._destroyed then return end
-	-- opacity 1 = fully opaque, 0.4 = more glass
+	-- Opacity 1.0 = fully opaque, 0.4 = highly translucent (world visible behind).
 	self._opacity = math.clamp(tonumber(opacity) or 1, 0.4, 1)
-	local trans = 1 - self._opacity
+	local glass = self._glass == true
+	-- Glass amplifies translucency; solid mode keeps higher opacity floor
+	local base = 1 - self._opacity
+	local windowT = glass and math.clamp(base * 0.85 + 0.15, 0, 0.75) or math.clamp(base * 0.35, 0, 0.35)
+	local surfaceT = glass and math.clamp(base * 0.55, 0, 0.55) or math.clamp(base * 0.15, 0, 0.2)
+	local navT = glass and math.clamp(base * 0.5, 0, 0.5) or math.clamp(base * 0.1, 0, 0.15)
 	if self._main then
-		self._main.BackgroundTransparency = trans * 0.15
+		self._main.BackgroundTransparency = windowT
 	end
 	if self._searchFrame then
-		self._searchFrame.BackgroundTransparency = trans * 0.25
+		self._searchFrame.BackgroundTransparency = surfaceT
 	end
 	if self._bottomNav then
-		self._bottomNav.BackgroundTransparency = trans * 0.2
+		self._bottomNav.BackgroundTransparency = navT
 	end
 	if self._secondary then
-		self._secondary.BackgroundTransparency = trans * 0.2
+		self._secondary.BackgroundTransparency = navT
+	end
+	if self._header then
+		self._header.BackgroundTransparency = 1 -- header stays clear of extra fill
 	end
 end
 

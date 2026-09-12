@@ -54,16 +54,25 @@ function Toggle.new(config, parent, theme)
 	stroke.Parent = switch
 	self._stroke = stroke
 
-	local check = Instance.new("TextLabel")
+	local check = Instance.new("Frame")
 	check.Name = "Check"
 	check.BackgroundTransparency = 1
 	check.Size = UDim2.new(1, 0, 1, 0)
-	check.Font = Enum.Font.GothamBold
-	check.TextSize = 14
-	check.TextColor3 = Color3.fromRGB(255, 255, 255)
-	check.Text = self._value and "✓" or ""
+	check.Visible = self._value == true
 	check.Parent = switch
 	self._check = check
+	local IconsMod = nil
+	pcall(function()
+		IconsMod = require(script.Parent.Parent.Icons.Registry)
+	end)
+	if IconsMod and IconsMod.Create then
+		IconsMod.Create(check, "Check", {
+			Size = 10,
+			Theme = theme,
+			Color = Color3.fromRGB(255, 255, 255),
+			ZIndex = 6,
+		})
+	end
 
 	local button = Instance.new("TextButton")
 	button.Name = "Hitbox"
@@ -93,7 +102,7 @@ function Toggle:Set(value)
 	Animation.Toggle(self._switch, {
 		BackgroundColor3 = value and theme:Get("ToggleOn") or theme:Get("ToggleOff"),
 	})
-	self._check.Text = value and "✓" or ""
+	self._check.Visible = value and true or false
 	self._stroke.Transparency = value and 1 or 0.4
 
 	self.ValueChanged:Fire(value)
