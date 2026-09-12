@@ -3297,16 +3297,18 @@ function MultiDropdown.new(config, parent, theme)
 	text.Parent = box
 	self._text = text
 
-	local arrow = Instance.new("TextLabel")
-	arrow.BackgroundTransparency = 1
-	arrow.Size = UDim2.new(0, 16, 1, 0)
-	arrow.Position = UDim2.new(1, -18, 0, 0)
-	arrow.Font = Enum.Font.GothamBold
-	arrow.TextSize = 10
-	arrow.TextColor3 = theme:Get("TextSecondary")
-	arrow.Text = "▼"
-	arrow.Parent = box
-	self._arrow = arrow
+	local arrowHolder = Instance.new("Frame")
+	arrowHolder.Name = "Arrow"
+	arrowHolder.BackgroundTransparency = 1
+	arrowHolder.Size = UDim2.new(0, 16, 0, 16)
+	arrowHolder.Position = UDim2.new(1, -18, 0.5, -8)
+	arrowHolder.Parent = box
+	self._arrow = arrowHolder
+	Icons.Create(arrowHolder, "DropdownDown", {
+		Size = 12,
+		Color = theme:Get("TextSecondary"),
+		ZIndex = (box.ZIndex or 1) + 1,
+	})
 
 	local popup = Instance.new("Frame")
 	popup.Name = "Popup"
