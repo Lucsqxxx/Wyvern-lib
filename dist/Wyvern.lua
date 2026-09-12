@@ -5099,9 +5099,6 @@ function Section:Destroy()
 	setmetatable(self, nil)
 end
 
-return Section
-
-
 -- Preferred Add* aliases (Create* retained for compatibility)
 function Section:AddButton(c) return self:CreateButton(c) end
 function Section:AddToggle(c) return self:CreateToggle(c) end
@@ -5118,6 +5115,9 @@ function Section:AddParagraph(c) return self:CreateParagraph(c) end
 function Section:AddDivider(c) return self:CreateDivider(c) end
 function Section:AddSpacer(c) return self:CreateSpacer(c) end
 function Section:AddFeature(c) return self:CreateFeature(c) end
+return Section
+
+
 end)
 
 -- ===== END Core.Section =====
@@ -5260,11 +5260,11 @@ function Tab:Destroy()
 	setmetatable(self, nil)
 end
 
-return Tab
-
 function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
+return Tab
+
 end)
 
 -- ===== END Core.Tab =====
@@ -6452,8 +6452,6 @@ function Window:Destroy()
 	setmetatable(self, nil)
 end
 
-return Window
-
 function Window:AddTab(config)
 	return self:CreateTab(config)
 end
@@ -6488,6 +6486,8 @@ function Window:Center()
 		math.floor((vp.Y - size.Y) / 2)
 	)
 end
+return Window
+
 end)
 
 -- ===== END Core.Window =====
@@ -6582,9 +6582,6 @@ function Wyvern:Notify(config)
 	warn("[Wyvern] Notify: no active window")
 end
 
-return Wyvern
-
-
 function Wyvern:GetFlag(name)
 	return Flags.Get(name)
 end
@@ -6615,6 +6612,9 @@ function Wyvern:Confirm(config)
 	config = config or {}
 	return Modal.Confirm(config, self._theme, nil)
 end
+return Wyvern
+
+
 end)
 
 -- ===== END init =====
