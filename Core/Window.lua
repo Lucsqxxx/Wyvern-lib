@@ -488,27 +488,27 @@ function Window.new(config, theme, scale)
 	local function createNavIcon(parentFrame, iconName, selected)
 		local btn = Instance.new("TextButton")
 		btn.Name = "Nav_" .. iconName
-		btn.Size = UDim2.fromOffset(28, 28)
+		btn.Size = UDim2.fromOffset(32, 32)
 		btn.BackgroundTransparency = 1
 		btn.Text = ""
 		btn.AutoButtonColor = false
 		btn.Parent = parentFrame
-		local glyph = Icons.CreateGlyph(iconName, theme, 14)
-		glyph.TextColor3 = selected and theme:Get("Accent") or theme:Get("TextSecondary")
-		glyph.Parent = btn
+		local color = selected and theme:Get("Accent") or theme:Get("TextSecondary")
+		local holder = Icons.Create(btn, iconName, { Size = 16, Theme = theme, Color = color, ZIndex = 6 })
 		btn:SetAttribute("Selected", selected == true)
 		self._maid:Give(btn.MouseEnter:Connect(function()
 			if btn:GetAttribute("Selected") then return end
-			glyph.TextColor3 = theme:Get("Text")
+			Icons.SetColor(holder, theme:Get("Text"))
 		end))
 		self._maid:Give(btn.MouseLeave:Connect(function()
-			glyph.TextColor3 = btn:GetAttribute("Selected") and theme:Get("Accent") or theme:Get("TextSecondary")
+			local c = btn:GetAttribute("Selected") and theme:Get("Accent") or theme:Get("TextSecondary")
+			Icons.SetColor(holder, c)
 		end))
 		return btn
 	end
 
 	-- Bottom nav icons — wired to tab selection by index when possible
-	local navNames = { "Moss", "Eye", "Layers", "Target", "Settings" }
+	local navNames = { "Home", "Eye", "Checklist", "Target", "Settings" }
 	self._navIcons = {}
 	for i, iconName in ipairs(navNames) do
 		local btn = createNavIcon(bottomNav, iconName, i == 1)
@@ -522,7 +522,7 @@ function Window.new(config, theme, scale)
 		end))
 	end
 
-	local secNames = { "Play", "Cube", "Users", "Layers", "Settings" }
+	local secNames = { "Home", "Checklist", "User", "Info", "Settings" }
 	self._secIcons = {}
 	for i, iconName in ipairs(secNames) do
 		local btn = createNavIcon(secondary, iconName, i == 1)
@@ -614,11 +614,18 @@ function Window:_setIconSelected(btn, selected)
 	if not btn then return end
 	local theme = self._theme
 	btn:SetAttribute("Selected", selected == true)
-	local glyph = btn:FindFirstChildWhichIsA("TextLabel")
-	if glyph and theme then
-		glyph.TextColor3 = selected and theme:Get("Accent") or theme:Get("TextSecondary")
-	elseif btn:IsA("ImageButton") and theme then
-		btn.ImageColor3 = selected and theme:Get("Accent") or theme:Get("TextSecondary")
+	local c = selected and theme:Get("Accent") or theme:Get("TextSecondary")
+	local holder = btn:FindFirstChild("Icon_" .. (btn.Name:gsub("^Nav_", "") or ""))
+	if not holder then
+		for _, ch in ipairs(btn:GetChildren()) do
+			if ch.Name:match("^Icon_") then
+				holder = ch
+				break
+			end
+		end
+	end
+	if holder then
+		Icons.SetColor(holder, c)
 	end
 end
 
