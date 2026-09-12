@@ -403,15 +403,79 @@ end)
 
 -- ===== END Core.Theme =====
 
+-- ===== BEGIN Icons.Glyphs (Icons/Glyphs.lua) =====
+
+__wyvern_define("Icons.Glyphs", function()
+-- Glyphs.lua
+-- Self-contained text glyphs for icons (no external asset dependency).
+-- Used when Image assets are unavailable or as primary style for consistency.
+
+local Glyphs = {
+	Back = "‹",
+	Search = "⌕",
+	Minimize = "–",
+	Close = "×",
+	Eye = "◉",
+	Checklist = "☰",
+	Settings = "⚙",
+	User = "☺",
+	ChevronDown = "▼",
+	ChevronUp = "▲",
+	Palette = "◉",
+	Scale = "↔",
+	Glass = "◇",
+	Reset = "↺",
+	Center = "＋",
+	Info = "i",
+	Check = "✓",
+	Plus = "+",
+	Minus = "−",
+	Home = "⌂",
+	Play = "▶",
+	Layers = "▤",
+	Target = "◎",
+	Moss = "●",
+	Cube = "■",
+	Users = "☺",
+	Sakura = "❀",
+}
+
+function Glyphs.Get(name)
+	if type(name) ~= "string" then
+		return "•"
+	end
+	return Glyphs[name] or "•"
+end
+
+--- Create a consistent icon TextLabel for use inside buttons.
+function Glyphs.CreateLabel(name, theme, size)
+	size = size or 14
+	local label = Instance.new("TextLabel")
+	label.Name = "Glyph_" .. tostring(name)
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = size
+	label.Text = Glyphs.Get(name)
+	label.TextColor3 = theme and theme:Get("TextSecondary") or Color3.fromRGB(170, 160, 185)
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	return label
+end
+
+return Glyphs
+end)
+
+-- ===== END Icons.Glyphs =====
+
 -- ===== BEGIN Icons.Registry (Icons/Registry.lua) =====
 
 __wyvern_define("Icons.Registry", function()
 -- Icons/Registry.lua
--- Centralized icon asset registry.
--- Placeholder IDs are used; replace with your own assets for production.
--- Invalid or missing icons fall back gracefully.
+-- Icon registry: optional image assets + glyph fallbacks via Icons.Glyphs.
 
 local FALLBACK = "rbxassetid://0"
+local Glyphs = __wyvern_require("Icons.Glyphs")
 
 local Icons = {
 	Search = "rbxassetid://6031154871",
@@ -435,6 +499,7 @@ local Icons = {
 	Center = "rbxassetid://6031094667",
 	Glass = "rbxassetid://6031075931",
 	Back = "rbxassetid://6031094670",
+	Glyphs = Glyphs,
 }
 
 function Icons.Get(name)
@@ -442,10 +507,18 @@ function Icons.Get(name)
 		return FALLBACK
 	end
 	local id = Icons[name]
-	if type(id) == "string" and id ~= "" then
+	if type(id) == "string" and id ~= "" and id ~= FALLBACK then
 		return id
 	end
 	return FALLBACK
+end
+
+function Icons.GetGlyph(name)
+	return Glyphs.Get(name)
+end
+
+function Icons.CreateGlyph(name, theme, size)
+	return Glyphs.CreateLabel(name, theme, size)
 end
 
 function Icons.Set(name, assetId)
@@ -3873,7 +3946,7 @@ function Window.new(config, theme, scale)
 	-- Secondary floating bar (follows main window)
 	local secondary = Instance.new("Frame")
 	secondary.Name = "SecondaryBar"
-	secondary.Size = UDim2.fromOffset(200, 34)
+	secondary.Size = UDim2.fromOffset(220, 40)
 	secondary.BackgroundColor3 = theme:Get("NavBackground")
 	secondary.BorderSizePixel = 0
 	secondary.Active = false
@@ -3905,14 +3978,24 @@ function Window.new(config, theme, scale)
 	self:_syncSecondary()
 
 	local function createNavIcon(parentFrame, iconName, selected)
-		local btn = Instance.new("ImageButton")
+		local btn = Instance.new("TextButton")
 		btn.Name = "Nav_" .. iconName
-		btn.Size = UDim2.fromOffset(22, 22)
+		btn.Size = UDim2.fromOffset(28, 28)
 		btn.BackgroundTransparency = 1
-		btn.Image = Icons.Get(iconName)
-		btn.ImageColor3 = selected and theme:Get("Accent") or theme:Get("TextSecondary")
+		btn.Text = ""
 		btn.AutoButtonColor = false
 		btn.Parent = parentFrame
+		local glyph = Icons.CreateGlyph(iconName, theme, 14)
+		glyph.TextColor3 = selected and theme:Get("Accent") or theme:Get("TextSecondary")
+		glyph.Parent = btn
+		btn:SetAttribute("Selected", selected == true)
+		self._maid:Give(btn.MouseEnter:Connect(function()
+			if btn:GetAttribute("Selected") then return end
+			glyph.TextColor3 = theme:Get("Text")
+		end))
+		self._maid:Give(btn.MouseLeave:Connect(function()
+			glyph.TextColor3 = btn:GetAttribute("Selected") and theme:Get("Accent") or theme:Get("TextSecondary")
+		end))
 		return btn
 	end
 
@@ -4011,7 +4094,7 @@ function Window:_syncSecondary()
 		return
 	end
 	local pos = self._main.Position
-	local x = pos.X.Offset + (Constants.WindowWidth - 200) / 2
+	local x = pos.X.Offset + (Constants.WindowWidth - 220) / 2
 	local y = pos.Y.Offset + Constants.WindowHeight + 12
 	if self._minimized then
 		y = pos.Y.Offset + Constants.HeaderHeight + 22
@@ -4019,23 +4102,26 @@ function Window:_syncSecondary()
 	self._secondary.Position = UDim2.fromOffset(x, y)
 end
 
-function Window:_selectNav(index)
+function Window:_setIconSelected(btn, selected)
+	if not btn then return end
 	local theme = self._theme
+	btn:SetAttribute("Selected", selected == true)
+	local glyph = btn:FindFirstChildWhichIsA("TextLabel")
+	if glyph and theme then
+		glyph.TextColor3 = selected and theme:Get("Accent") or theme:Get("TextSecondary")
+	elseif btn:IsA("ImageButton") and theme then
+		btn.ImageColor3 = selected and theme:Get("Accent") or theme:Get("TextSecondary")
+	end
+end
+
+function Window:_selectNav(index)
 	local navCount = #(self._navIcons or {})
-	-- Last icon is always Settings
+	for i, btn in ipairs(self._navIcons or {}) do
+		self:_setIconSelected(btn, i == index)
+	end
 	if index == navCount then
-		for i, btn in ipairs(self._navIcons or {}) do
-			if btn then
-				btn.ImageColor3 = (i == index) and theme:Get("Accent") or theme:Get("TextSecondary")
-			end
-		end
 		self:OpenSettings()
 		return
-	end
-	for i, btn in ipairs(self._navIcons or {}) do
-		if btn then
-			btn.ImageColor3 = (i == index) and theme:Get("Accent") or theme:Get("TextSecondary")
-		end
 	end
 	local tab = self._tabs[index]
 	if tab and not tab._destroyed then
@@ -4044,17 +4130,19 @@ function Window:_selectNav(index)
 end
 
 function Window:_selectSecondary(index)
-	local theme = self._theme
 	for i, btn in ipairs(self._secIcons or {}) do
-		if btn then
-			btn.ImageColor3 = (i == index) and theme:Get("Accent") or theme:Get("TextSecondary")
-		end
+		self:_setIconSelected(btn, i == index)
 	end
+	-- Semantic actions for external bar (not draggable)
 	if index == 1 then
-		if self._minimized then
-			self:Restore()
-		end
+		if self._minimized then self:Restore() end
 		self:Open()
+	elseif index == 2 then
+		if self._tabs[1] then self._tabs[1]:Select() end
+	elseif index == 3 then
+		if self._tabs[2] then self._tabs[2]:Select() end
+	elseif index == 4 then
+		self:Notify({ Title = "Wyvern", Content = "Wyvern UI Lib " .. tostring(self._version), Duration = 2 })
 	elseif index == #(self._secIcons or {}) then
 		self:OpenSettings()
 	end

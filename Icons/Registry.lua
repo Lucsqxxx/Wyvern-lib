@@ -1,9 +1,8 @@
 -- Icons/Registry.lua
--- Centralized icon asset registry.
--- Placeholder IDs are used; replace with your own assets for production.
--- Invalid or missing icons fall back gracefully.
+-- Icon registry: optional image assets + glyph fallbacks via Icons.Glyphs.
 
 local FALLBACK = "rbxassetid://0"
+local Glyphs = require(script.Parent.Glyphs)
 
 local Icons = {
 	Search = "rbxassetid://6031154871",
@@ -27,6 +26,7 @@ local Icons = {
 	Center = "rbxassetid://6031094667",
 	Glass = "rbxassetid://6031075931",
 	Back = "rbxassetid://6031094670",
+	Glyphs = Glyphs,
 }
 
 function Icons.Get(name)
@@ -34,10 +34,18 @@ function Icons.Get(name)
 		return FALLBACK
 	end
 	local id = Icons[name]
-	if type(id) == "string" and id ~= "" then
+	if type(id) == "string" and id ~= "" and id ~= FALLBACK then
 		return id
 	end
 	return FALLBACK
+end
+
+function Icons.GetGlyph(name)
+	return Glyphs.Get(name)
+end
+
+function Icons.CreateGlyph(name, theme, size)
+	return Glyphs.CreateLabel(name, theme, size)
 end
 
 function Icons.Set(name, assetId)
