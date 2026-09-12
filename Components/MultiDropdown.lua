@@ -2,6 +2,7 @@
 -- Multi-select dropdown.
 
 local Component = require(script.Parent.Parent.Core.Component)
+local Icons = require(script.Parent.Parent.Icons.Registry)
 local Constants = require(script.Parent.Parent.Core.Constants)
 local PopupManager = require(script.Parent.Parent.Core.PopupManager)
 local Constants = require(script.Parent.Parent.Core.Constants)
@@ -196,7 +197,7 @@ function MultiDropdown:_rebuildOptions()
 		t.TextSize = 11
 		t.TextColor3 = theme:Get("Text")
 		t.TextXAlignment = Enum.TextXAlignment.Left
-		t.Text = (selected and "✓ " or "   ") .. tostring(opt)
+		t.Text = (selected and "+ " or "  ") .. tostring(opt)
 		t.ZIndex = 53
 		t.Parent = btn
 
@@ -264,7 +265,7 @@ function MultiDropdown:Open()
 		self._popup.Visible = true
 		self._popup.ZIndex = (Constants and Constants.ZIndex and Constants.ZIndex.Dropdown) or 90
 	end
-	if self._arrow then self._arrow.Text = "▲" end
+	-- open
 end
 
 function MultiDropdown:Close()
@@ -279,7 +280,7 @@ function MultiDropdown:Close()
 			self._popup.Size = UDim2.new(1, 0, 0, 0)
 		end
 	end
-	if self._arrow then self._arrow.Text = "▼" end
+	-- closed
 end
 
 function MultiDropdown:ApplyTheme(theme)

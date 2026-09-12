@@ -582,7 +582,7 @@ function Window.new(config, theme, scale)
 	end
 
 	pcall(function()
-		Icons.Preload({ "Home", "Eye", "Checklist", "Target", "Settings", "User", "Info", "Close", "Minimize", "Search", "Check", "Back" })
+		Icons.Preload({ "Home", "Eye", "Checklist", "Settings", "User", "Info", "Close", "Minimize", "Search", "Check", "Back", "Fullscreen", "DropdownDown", "DockHome", "DockSettings", "Palette", "Glass", "Reset", "Center" })
 	end)
 
 	ActiveWindows[self._name] = self

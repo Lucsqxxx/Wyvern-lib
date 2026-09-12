@@ -3,6 +3,7 @@
 
 local UserInputService = game:GetService("UserInputService")
 local Component = require(script.Parent.Parent.Core.Component)
+local Icons = require(script.Parent.Parent.Icons.Registry)
 local Animation = require(script.Parent.Parent.Core.Animation)
 local Constants = require(script.Parent.Parent.Core.Constants)
 local PopupManager = require(script.Parent.Parent.Core.PopupManager)
@@ -86,17 +87,18 @@ function Dropdown.new(config, parent, theme)
 	text.Parent = box
 	self._text = text
 
-	local arrow = Instance.new("TextLabel")
-	arrow.Name = "Arrow"
-	arrow.BackgroundTransparency = 1
-	arrow.Size = UDim2.new(0, 16, 1, 0)
-	arrow.Position = UDim2.new(1, -18, 0, 0)
-	arrow.Font = Enum.Font.GothamBold
-	arrow.TextSize = 10
-	arrow.TextColor3 = theme:Get("TextSecondary")
-	arrow.Text = "▼"
-	arrow.Parent = box
-	self._arrow = arrow
+	local arrowHolder = Instance.new("Frame")
+	arrowHolder.Name = "Arrow"
+	arrowHolder.BackgroundTransparency = 1
+	arrowHolder.Size = UDim2.new(0, 16, 0, 16)
+	arrowHolder.Position = UDim2.new(1, -18, 0.5, -8)
+	arrowHolder.Parent = box
+	self._arrow = arrowHolder
+	Icons.Create(arrowHolder, "DropdownDown", {
+		Size = 12,
+		Color = theme:Get("TextSecondary"),
+		ZIndex = (box.ZIndex or 1) + 1,
+	})
 
 	-- Popup list (parented to box so it follows)
 	local popup = Instance.new("Frame")
@@ -270,7 +272,7 @@ function Dropdown:Open()
 		self._popup.ZIndex = Constants.ZIndex.Dropdown or 90
 	end
 	if self._arrow then
-		self._arrow.Text = "▲"
+		-- open state: keep image
 	end
 end
 
@@ -288,7 +290,7 @@ function Dropdown:Close()
 		end
 	end
 	if self._arrow then
-		self._arrow.Text = "▼"
+		-- closed state: keep image
 	end
 end
 

@@ -1,6 +1,4 @@
--- Icons/Registry.lua
--- Image-first when AssetProvider can resolve a ContentId.
--- Safe: never assigns nil/non-string to ImageLabel.Image.
+-- Icons/Registry.lua — image-first via AssetProvider (HttpGet→writefile→getcustomasset)
 
 local AssetProvider = require(script.Parent.AssetProvider)
 local Renderer = require(script.Parent.Renderer)
@@ -13,8 +11,7 @@ end)
 local Icons = {
 	AssetProvider = AssetProvider,
 	Renderer = Renderer,
-	-- Vector only when no verified rbxassetid and custom-asset download unavailable
-	AllowVectorFallback = true,
+	AllowVectorFallback = true, -- only if PNG pipeline fails (keeps UI usable)
 	RepoRawBase = AssetProvider.RepoRaw,
 	Files = AssetProvider.FileMap,
 	AssetIds = verifiedIds,
@@ -22,19 +19,6 @@ local Icons = {
 
 local function isValidContentId(s)
 	return type(s) == "string" and s ~= "" and s ~= "nil"
-end
-
-local function safeSetImage(img, source)
-	if not img then
-		return false
-	end
-	if not isValidContentId(source) then
-		return false
-	end
-	local ok = pcall(function()
-		img.Image = source
-	end)
-	return ok
 end
 
 function Icons.GetGitHubUrl(name)
@@ -89,24 +73,17 @@ function Icons.Create(parent, name, options)
 		img.ImageColor3 = color
 		img.ZIndex = z + 1
 		img.Parent = holder
-		if not safeSetImage(img, source) then
+		local ok = pcall(function()
+			img.Image = source
+		end)
+		if not ok then
 			img:Destroy()
 			if Icons.AllowVectorFallback then
-				Renderer.Create(holder, name, {
-					Size = size,
-					Color = color,
-					Theme = options.Theme,
-					ZIndex = z + 1,
-				})
+				Renderer.Create(holder, name, { Size = size, Color = color, Theme = options.Theme, ZIndex = z + 1 })
 			end
 		end
 	elseif Icons.AllowVectorFallback then
-		Renderer.Create(holder, name, {
-			Size = size,
-			Color = color,
-			Theme = options.Theme,
-			ZIndex = z + 1,
-		})
+		Renderer.Create(holder, name, { Size = size, Color = color, Theme = options.Theme, ZIndex = z + 1 })
 	end
 
 	return holder
