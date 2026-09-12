@@ -222,18 +222,54 @@ function Dropdown:IsPointInside(pos)
 	return hit(self._box) or hit(self._popup)
 end
 
+function Dropdown:_positionPopup()
+	if not self._popup or not self._box then
+		return
+	end
+	local overlay = PopupManager.GetOverlay()
+	local box = self._box
+	local popup = self._popup
+	local absPos = box.AbsolutePosition
+	local absSize = box.AbsoluteSize
+	local parent = overlay or box
+	if popup.Parent ~= parent then
+		popup.Parent = parent
+	end
+	-- Screen-space position relative to overlay (or under box)
+	if overlay and parent == overlay then
+		local oAbs = overlay.AbsolutePosition
+		local x = absPos.X - oAbs.X
+		local y = absPos.Y - oAbs.Y + absSize.Y + 4
+		local popupH = popup.AbsoluteSize.Y
+		if popupH < 1 then
+			popupH = math.min(#self._options, 6) * 26 + 10
+		end
+		local cam = workspace.CurrentCamera
+		local vpY = cam and cam.ViewportSize.Y or 1080
+		if absPos.Y + absSize.Y + 4 + popupH > vpY - 8 then
+			y = absPos.Y - oAbs.Y - popupH - 4
+		end
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(absSize.X, popupH)
+	else
+		popup.Position = UDim2.new(0, 0, 1, 4)
+		popup.Size = UDim2.new(1, 0, 0, math.min(#self._options, 6) * 26 + 10)
+	end
+end
+
 function Dropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
 	PopupManager.RegisterOpen(self)
 	self._open = true
+	self:_rebuildOptions()
+	self:_positionPopup()
 	if self._popup then
 		self._popup.Visible = true
-		self._popup.ZIndex = 100
+		self._popup.ZIndex = Constants.ZIndex.Dropdown or 90
 	end
 	if self._arrow then
 		self._arrow.Text = "▲"
 	end
-	self:_rebuildOptions()
 end
 
 function Dropdown:Close()
@@ -242,6 +278,12 @@ function Dropdown:Close()
 	PopupManager.RegisterClose(self)
 	if self._popup then
 		self._popup.Visible = false
+		-- Reparent back under box so cleanup stays with component
+		if self._box then
+			self._popup.Parent = self._box
+			self._popup.Position = UDim2.new(0, 0, 1, 4)
+			self._popup.Size = UDim2.new(1, 0, 0, 0)
+		end
 	end
 	if self._arrow then
 		self._arrow.Text = "▼"

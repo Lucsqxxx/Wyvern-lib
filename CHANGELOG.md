@@ -1,3 +1,11 @@
+## [1.0.1] - Hardening
+
+### Fixed
+- Header title/version overlap (UIListLayout TitleCluster)
+- Click/double-click no longer starts drag (DragThreshold)
+- Dropdowns parent to OverlayLayer (screen-space)
+- Settings nav opens real Appearance/Behavior panel (scale, colors)
+
 # Changelog
 
 ## v1.0.0 — 2026-09-11

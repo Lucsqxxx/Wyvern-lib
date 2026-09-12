@@ -48,9 +48,14 @@ local Constants = {
 		Content = 20,
 		Controls = 30,
 		Navigation = 40,
+		Overlay = 80,
+		Dropdown = 90,
 		Tooltip = 100,
+		Modal = 150,
 		Notification = 200,
 	},
+	DragThreshold = 4, -- pixels before a press becomes a drag
+
 }
 
 return Constants

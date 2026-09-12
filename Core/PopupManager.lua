@@ -1,12 +1,22 @@
 -- PopupManager.lua
 -- Centralized exclusive popup/dropdown open state + outside-click handling.
+-- Popups should parent to an overlay layer (screen space), not clipped content.
 
 local UserInputService = game:GetService("UserInputService")
 
 local PopupManager = {
-	_open = nil, -- currently open popup component (must implement :Close())
+	_open = nil,
 	_conn = nil,
+	_overlay = nil, -- Frame parent for screen-space popups
 }
+
+function PopupManager.SetOverlay(overlay)
+	PopupManager._overlay = overlay
+end
+
+function PopupManager.GetOverlay()
+	return PopupManager._overlay
+end
 
 function PopupManager.RegisterOpen(component)
 	if PopupManager._open and PopupManager._open ~= component then
@@ -54,7 +64,6 @@ function PopupManager._ensureListener()
 			PopupManager._open = nil
 			return
 		end
-		-- Defer so the same click that opens/selects can process first
 		task.defer(function()
 			local current = PopupManager._open
 			if not current or current._destroyed or not current._open then

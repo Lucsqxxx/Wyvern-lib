@@ -219,9 +219,14 @@ local Constants = {
 		Content = 20,
 		Controls = 30,
 		Navigation = 40,
+		Overlay = 80,
+		Dropdown = 90,
 		Tooltip = 100,
+		Modal = 150,
 		Notification = 200,
 	},
+	DragThreshold = 4, -- pixels before a press becomes a drag
+
 }
 
 return Constants
@@ -949,13 +954,23 @@ end)
 __wyvern_define("Core.PopupManager", function()
 -- PopupManager.lua
 -- Centralized exclusive popup/dropdown open state + outside-click handling.
+-- Popups should parent to an overlay layer (screen space), not clipped content.
 
 local UserInputService = game:GetService("UserInputService")
 
 local PopupManager = {
-	_open = nil, -- currently open popup component (must implement :Close())
+	_open = nil,
 	_conn = nil,
+	_overlay = nil, -- Frame parent for screen-space popups
 }
+
+function PopupManager.SetOverlay(overlay)
+	PopupManager._overlay = overlay
+end
+
+function PopupManager.GetOverlay()
+	return PopupManager._overlay
+end
 
 function PopupManager.RegisterOpen(component)
 	if PopupManager._open and PopupManager._open ~= component then
@@ -1003,7 +1018,6 @@ function PopupManager._ensureListener()
 			PopupManager._open = nil
 			return
 		end
-		-- Defer so the same click that opens/selects can process first
 		task.defer(function()
 			local current = PopupManager._open
 			if not current or current._destroyed or not current._open then
@@ -1918,18 +1932,54 @@ function Dropdown:IsPointInside(pos)
 	return hit(self._box) or hit(self._popup)
 end
 
+function Dropdown:_positionPopup()
+	if not self._popup or not self._box then
+		return
+	end
+	local overlay = PopupManager.GetOverlay()
+	local box = self._box
+	local popup = self._popup
+	local absPos = box.AbsolutePosition
+	local absSize = box.AbsoluteSize
+	local parent = overlay or box
+	if popup.Parent ~= parent then
+		popup.Parent = parent
+	end
+	-- Screen-space position relative to overlay (or under box)
+	if overlay and parent == overlay then
+		local oAbs = overlay.AbsolutePosition
+		local x = absPos.X - oAbs.X
+		local y = absPos.Y - oAbs.Y + absSize.Y + 4
+		local popupH = popup.AbsoluteSize.Y
+		if popupH < 1 then
+			popupH = math.min(#self._options, 6) * 26 + 10
+		end
+		local cam = workspace.CurrentCamera
+		local vpY = cam and cam.ViewportSize.Y or 1080
+		if absPos.Y + absSize.Y + 4 + popupH > vpY - 8 then
+			y = absPos.Y - oAbs.Y - popupH - 4
+		end
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(absSize.X, popupH)
+	else
+		popup.Position = UDim2.new(0, 0, 1, 4)
+		popup.Size = UDim2.new(1, 0, 0, math.min(#self._options, 6) * 26 + 10)
+	end
+end
+
 function Dropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
 	PopupManager.RegisterOpen(self)
 	self._open = true
+	self:_rebuildOptions()
+	self:_positionPopup()
 	if self._popup then
 		self._popup.Visible = true
-		self._popup.ZIndex = 100
+		self._popup.ZIndex = Constants.ZIndex.Dropdown or 90
 	end
 	if self._arrow then
 		self._arrow.Text = "▲"
 	end
-	self:_rebuildOptions()
 end
 
 function Dropdown:Close()
@@ -1938,6 +1988,12 @@ function Dropdown:Close()
 	PopupManager.RegisterClose(self)
 	if self._popup then
 		self._popup.Visible = false
+		-- Reparent back under box so cleanup stays with component
+		if self._box then
+			self._popup.Parent = self._box
+			self._popup.Position = UDim2.new(0, 0, 1, 4)
+			self._popup.Size = UDim2.new(1, 0, 0, 0)
+		end
 	end
 	if self._arrow then
 		self._arrow.Text = "▼"
@@ -3050,6 +3106,18 @@ function Window.new(config, theme, scale)
 	uiScale.Parent = screenGui
 	self._uiScale = uiScale
 
+	-- Screen-space overlay for dropdowns/popups (above window, not clipped by content)
+	local overlay = Instance.new("Frame")
+	overlay.Name = "OverlayLayer"
+	overlay.BackgroundTransparency = 1
+	overlay.Size = UDim2.fromScale(1, 1)
+	overlay.Position = UDim2.fromOffset(0, 0)
+	overlay.ZIndex = Constants.ZIndex.Overlay
+	overlay.Active = false
+	overlay.Parent = screenGui
+	self._overlay = overlay
+	PopupManager.SetOverlay(overlay)
+
 	-- Main window: offset-only position from the start
 	local main = Instance.new("Frame")
 	main.Name = "MainWindow"
@@ -3106,29 +3174,51 @@ function Window.new(config, theme, scale)
 	logo.ImageColor3 = theme:Get("Accent")
 	logo.Parent = header
 
+	-- Left title cluster: Title + Version via layout (no overlap)
+	local titleCluster = Instance.new("Frame")
+	titleCluster.Name = "TitleCluster"
+	titleCluster.BackgroundTransparency = 1
+	titleCluster.Position = UDim2.fromOffset(36, 0)
+	titleCluster.Size = UDim2.new(1, -120, 1, 0)
+	titleCluster.ClipsDescendants = true
+	titleCluster.Parent = header
+
+	local titleLayout = Instance.new("UIListLayout")
+	titleLayout.FillDirection = Enum.FillDirection.Horizontal
+	titleLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	titleLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	titleLayout.Padding = UDim.new(0, 8)
+	titleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	titleLayout.Parent = titleCluster
+
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(0, 100, 1, 0)
-	title.Position = UDim2.fromOffset(36, 0)
+	title.AutomaticSize = Enum.AutomaticSize.X
+	title.Size = UDim2.fromOffset(0, Constants.HeaderHeight)
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = Constants.TitleSize
 	title.TextColor3 = theme:Get("Text")
 	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextTruncate = Enum.TextTruncate.AtEnd
 	title.Text = self._name
-	title.Parent = header
+	title.LayoutOrder = 1
+	title.Parent = titleCluster
+	self._titleLabel = title
 
 	local version = Instance.new("TextLabel")
 	version.Name = "Version"
 	version.BackgroundTransparency = 1
-	version.Size = UDim2.new(0, 50, 1, 0)
-	version.Position = UDim2.fromOffset(130, 0)
+	version.AutomaticSize = Enum.AutomaticSize.X
+	version.Size = UDim2.fromOffset(0, Constants.HeaderHeight)
 	version.Font = Enum.Font.Gotham
 	version.TextSize = Constants.VersionSize
 	version.TextColor3 = theme:Get("TextSecondary")
 	version.TextXAlignment = Enum.TextXAlignment.Left
 	version.Text = self._version
-	version.Parent = header
+	version.LayoutOrder = 2
+	version.Parent = titleCluster
+	self._versionLabel = version
 
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.Name = "Close"
@@ -3181,25 +3271,39 @@ function Window.new(config, theme, scale)
 	dragHandle.ZIndex = 2
 	dragHandle.Parent = header
 
+	-- Drag: press tracks pointer; movement only applies after DragThreshold px
+	-- so clicks / double-clicks never teleport the window.
+	self._dragPending = false
 	self._maid:Give(dragHandle.InputBegan:Connect(function(input)
 		if self._destroyed then
 			return
 		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			self._dragging = true
+			self._dragPending = true
+			self._dragging = false
 			self._dragStart = Vector2.new(input.Position.X, input.Position.Y)
-			-- Capture absolute screen position — never mix Scale/Offset
 			local abs = main.AbsolutePosition
 			self._startAbs = Vector2.new(abs.X, abs.Y)
 		end
 	end))
 
 	self._maid:Give(UserInputService.InputChanged:Connect(function(input)
-		if not self._dragging or self._destroyed or not self._startAbs or not self._dragStart then
+		if self._destroyed or not self._dragStart or not self._startAbs then
+			return
+		end
+		if not (self._dragPending or self._dragging) then
 			return
 		end
 		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 			local delta = Vector2.new(input.Position.X, input.Position.Y) - self._dragStart
+			if not self._dragging then
+				local thresh = Constants.DragThreshold or 4
+				if delta.Magnitude < thresh then
+					return -- still a click, not a drag
+				end
+				self._dragging = true
+				self._dragPending = false
+			end
 			local newX = self._startAbs.X + delta.X
 			local newY = self._startAbs.Y + delta.Y
 			local h = self._minimized and (Constants.HeaderHeight + 10) or Constants.WindowHeight
@@ -3214,13 +3318,12 @@ function Window.new(config, theme, scale)
 
 	self._maid:Give(UserInputService.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			if self._dragging then
-				self._dragging = false
-				self._dragStart = nil
-				self._startAbs = nil
-				if not self._minimized and main then
-					self._savedPosition = main.Position
-				end
+			self._dragging = false
+			self._dragPending = false
+			self._dragStart = nil
+			self._startAbs = nil
+			if not self._minimized and main then
+				self._savedPosition = main.Position
 			end
 		end
 	end))
@@ -3430,12 +3533,22 @@ end
 
 function Window:_selectNav(index)
 	local theme = self._theme
+	local navCount = #(self._navIcons or {})
+	-- Last icon is always Settings
+	if index == navCount then
+		for i, btn in ipairs(self._navIcons or {}) do
+			if btn then
+				btn.ImageColor3 = (i == index) and theme:Get("Accent") or theme:Get("TextSecondary")
+			end
+		end
+		self:OpenSettings()
+		return
+	end
 	for i, btn in ipairs(self._navIcons or {}) do
 		if btn then
 			btn.ImageColor3 = (i == index) and theme:Get("Accent") or theme:Get("TextSecondary")
 		end
 	end
-	-- Map nav index to tab when tabs exist
 	local tab = self._tabs[index]
 	if tab and not tab._destroyed then
 		tab:Select()
@@ -3449,10 +3562,124 @@ function Window:_selectSecondary(index)
 			btn.ImageColor3 = (i == index) and theme:Get("Accent") or theme:Get("TextSecondary")
 		end
 	end
-	-- Secondary bar: first icon restores if minimized; others are visual selection only
-	if index == 1 and self._minimized then
+	if index == 1 then
+		if self._minimized then
+			self:Restore()
+		end
+		self:Open()
+	elseif index == #(self._secIcons or {}) then
+		self:OpenSettings()
+	end
+end
+
+function Window:OpenSettings()
+	if self._destroyed then
+		return
+	end
+	if self._minimized then
 		self:Restore()
 	end
+	pcall(function()
+		PopupManager.CloseAll()
+	end)
+	-- Create settings tab once
+	if self._settingsTab and not self._settingsTab._destroyed then
+		self._settingsTab:Select()
+		return
+	end
+	local tab = self:CreateTab({ Name = "Settings", Icon = "Settings" })
+	self._settingsTab = tab
+	local section = tab:CreateSection({ Name = "Appearance", Column = "Left" })
+	local section2 = tab:CreateSection({ Name = "Behavior", Column = "Right" })
+
+	section:CreateSlider({
+		Name = "UI Scale",
+		Min = 0.7,
+		Max = 1.4,
+		Default = self._scale or 1,
+		Increment = 0.05,
+		Callback = function(v)
+			self:SetScale(v)
+		end,
+	})
+
+	section:CreateColorPicker({
+		Name = "Accent",
+		Default = self._theme and self._theme:Get("Accent") or Color3.fromRGB(255, 110, 175),
+		Callback = function(c)
+			if self._theme then
+				self._theme:Set("Accent", c)
+				self._theme:Set("ToggleOn", c)
+				self._theme:Set("SliderFill", c)
+			end
+			-- Update header logo accent if present
+			local logo = self._header and self._header:FindFirstChild("Logo")
+			if logo then
+				logo.ImageColor3 = c
+			end
+		end,
+	})
+
+	section:CreateColorPicker({
+		Name = "Background",
+		Default = self._theme and self._theme:Get("Background") or Color3.fromRGB(18, 14, 24),
+		Callback = function(c)
+			if self._theme then
+				self._theme:Set("Background", c)
+			end
+			if self._main then
+				self._main.BackgroundColor3 = c
+			end
+		end,
+	})
+
+	section:CreateColorPicker({
+		Name = "Surface",
+		Default = self._theme and self._theme:Get("Surface") or Color3.fromRGB(30, 24, 38),
+		Callback = function(c)
+			if self._theme then
+				self._theme:Set("Surface", c)
+			end
+		end,
+	})
+
+	section2:CreateToggle({
+		Name = "Auto-close Popups",
+		Default = true,
+		Callback = function(v)
+			self._autoClosePopups = v
+		end,
+	})
+
+	section2:CreateButton({
+		Name = "Reset Scale",
+		Callback = function()
+			self:SetScale(1)
+		end,
+	})
+
+	section2:CreateButton({
+		Name = "Center Window",
+		Callback = function()
+			if self._main then
+				local pos = centerPosition(Constants.WindowWidth, Constants.WindowHeight, self._scale)
+				self._main.Position = pos
+				self._savedPosition = pos
+				self:_syncSecondary()
+			end
+		end,
+	})
+
+	section2:CreateButton({
+		Name = "Close Settings Tab",
+		Callback = function()
+			if self._tabs[1] then
+				self._tabs[1]:Select()
+			end
+		end,
+	})
+
+	tab:Select()
 end
 
 function Window:CreateTab(config)
@@ -3619,9 +3846,8 @@ function Window:SetTitle(title)
 		return
 	end
 	self._name = tostring(title or self._name)
-	local titleLabel = self._header and self._header:FindFirstChild("Title")
-	if titleLabel then
-		titleLabel.Text = self._name
+	if self._titleLabel then
+		self._titleLabel.Text = self._name
 	end
 end
 
@@ -3630,9 +3856,8 @@ function Window:SetVersion(version)
 		return
 	end
 	self._version = tostring(version or self._version)
-	local ver = self._header and self._header:FindFirstChild("Version")
-	if ver then
-		ver.Text = self._version
+	if self._versionLabel then
+		self._versionLabel.Text = self._version
 	end
 end
 
