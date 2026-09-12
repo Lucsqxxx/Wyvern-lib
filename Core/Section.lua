@@ -191,6 +191,25 @@ function Section:CreateIndicators(config)
 	return container
 end
 
+
+function Section:CreateCheckbox(config)
+	return self:CreateToggle(config)
+end
+
+function Section:CreateParagraph(config)
+	return self:CreateLabel(config)
+end
+
+function Section:CreateSpacer(config)
+	return self:CreateDivider(config)
+end
+
+function Section:CreateNotification(config)
+	-- Notifications are window-level; no-op section helper would be misleading
+	warn("[Wyvern] Use Window:Notify(...) for notifications")
+	return nil
+end
+
 function Section:SetVisible(visible)
 	self._instance.Visible = visible
 end

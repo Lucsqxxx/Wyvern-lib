@@ -3,6 +3,13 @@
 ## v1.0.0 — 2026-09-11
 
 ### Fixed
+- Dropdown/MultiDropdown exclusive open + real outside-click close (PopupManager)
+- Open dropdowns closed on minimize and tab switch
+- Viewport resize reclamps window into bounds (no teleport)
+- Section aliases: CreateCheckbox, CreateParagraph, CreateSpacer
+
+### Fixed
+
 - Window position teleport on interact (Scale/Offset drag mix)
 - Minimize now hides search bar and all expanded chrome
 - Bottom / secondary nav icons are clickable (tab selection + visual state)

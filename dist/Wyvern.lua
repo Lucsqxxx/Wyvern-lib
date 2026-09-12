@@ -944,6 +944,100 @@ end)
 
 -- ===== END Core.Notification =====
 
+-- ===== BEGIN Core.PopupManager (Core/PopupManager.lua) =====
+
+__wyvern_define("Core.PopupManager", function()
+-- PopupManager.lua
+-- Centralized exclusive popup/dropdown open state + outside-click handling.
+
+local UserInputService = game:GetService("UserInputService")
+
+local PopupManager = {
+	_open = nil, -- currently open popup component (must implement :Close())
+	_conn = nil,
+}
+
+function PopupManager.RegisterOpen(component)
+	if PopupManager._open and PopupManager._open ~= component then
+		pcall(function()
+			PopupManager._open:Close()
+		end)
+	end
+	PopupManager._open = component
+	PopupManager._ensureListener()
+end
+
+function PopupManager.RegisterClose(component)
+	if PopupManager._open == component then
+		PopupManager._open = nil
+	end
+end
+
+function PopupManager.CloseAll()
+	if PopupManager._open then
+		local current = PopupManager._open
+		PopupManager._open = nil
+		pcall(function()
+			current:Close()
+		end)
+	end
+end
+
+function PopupManager.GetOpen()
+	return PopupManager._open
+end
+
+function PopupManager._ensureListener()
+	if PopupManager._conn then
+		return
+	end
+	PopupManager._conn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		local open = PopupManager._open
+		if not open or open._destroyed then
+			PopupManager._open = nil
+			return
+		end
+		-- Defer so the same click that opens/selects can process first
+		task.defer(function()
+			local current = PopupManager._open
+			if not current or current._destroyed or not current._open then
+				return
+			end
+			local pos = input.Position
+			local inside = false
+			if typeof(current.IsPointInside) == "function" then
+				inside = current:IsPointInside(pos)
+			elseif current._box and current._popup then
+				local function hit(gui)
+					if not gui or not gui.Visible then
+						return false
+					end
+					local ap = gui.AbsolutePosition
+					local as = gui.AbsoluteSize
+					return pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
+				end
+				inside = hit(current._box) or hit(current._popup)
+			end
+			if not inside then
+				pcall(function()
+					current:Close()
+				end)
+			end
+		end)
+	end)
+end
+
+return PopupManager
+end)
+
+-- ===== END Core.PopupManager =====
+
 -- ===== BEGIN Components.Button (Components/Button.lua) =====
 
 __wyvern_define("Components.Button", function()
@@ -1607,6 +1701,7 @@ local UserInputService = game:GetService("UserInputService")
 local Component = __wyvern_require("Core.Component")
 local Animation = __wyvern_require("Core.Animation")
 local Constants = __wyvern_require("Core.Constants")
+local PopupManager = __wyvern_require("Core.PopupManager")
 
 local Dropdown = setmetatable({}, { __index = Component })
 Dropdown.__index = Dropdown
@@ -1757,19 +1852,6 @@ function Dropdown.new(config, parent, theme)
 		end
 	end))
 
-	-- Close when clicking elsewhere
-	self._maid:Give(UserInputService.InputBegan:Connect(function(input)
-		if not self._open or self._destroyed then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			-- simple close; more precise hit-test can be added later
-			task.defer(function()
-				if self._open and not self._destroyed then
-					-- keep open only if still interacting with popup; for simplicity close after short delay is handled by option click
-				end
-			end)
-		end
-	end))
-
 	self._maid:Give(container)
 	return self
 end
@@ -1824,19 +1906,42 @@ function Dropdown:_rebuildOptions()
 	end
 end
 
+function Dropdown:IsPointInside(pos)
+	local function hit(gui)
+		if not gui or not gui.Visible then
+			return false
+		end
+		local ap = gui.AbsolutePosition
+		local as = gui.AbsoluteSize
+		return pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
+	end
+	return hit(self._box) or hit(self._popup)
+end
+
 function Dropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
+	PopupManager.RegisterOpen(self)
 	self._open = true
-	self._popup.Visible = true
-	self._arrow.Text = "▲"
+	if self._popup then
+		self._popup.Visible = true
+		self._popup.ZIndex = 100
+	end
+	if self._arrow then
+		self._arrow.Text = "▲"
+	end
 	self:_rebuildOptions()
 end
 
 function Dropdown:Close()
 	if not self._open then return end
 	self._open = false
-	self._popup.Visible = false
-	self._arrow.Text = "▼"
+	PopupManager.RegisterClose(self)
+	if self._popup then
+		self._popup.Visible = false
+	end
+	if self._arrow then
+		self._arrow.Text = "▼"
+	end
 end
 
 function Dropdown:Get()
@@ -1912,6 +2017,7 @@ end
 
 function Dropdown:Destroy()
 	self:Close()
+	PopupManager.RegisterClose(self)
 	Component.Destroy(self)
 end
 
@@ -1928,6 +2034,7 @@ __wyvern_define("Components.MultiDropdown", function()
 
 local Component = __wyvern_require("Core.Component")
 local Constants = __wyvern_require("Core.Constants")
+local PopupManager = __wyvern_require("Core.PopupManager")
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -2140,19 +2247,30 @@ function MultiDropdown:_rebuildOptions()
 	end
 end
 
+function MultiDropdown:IsPointInside(pos)
+	local function hit(gui)
+		if not gui or not gui.Visible then return false end
+		local ap, as = gui.AbsolutePosition, gui.AbsoluteSize
+		return pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
+	end
+	return hit(self._box) or hit(self._popup)
+end
+
 function MultiDropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
+	PopupManager.RegisterOpen(self)
 	self._open = true
-	self._popup.Visible = true
-	self._arrow.Text = "▲"
+	if self._popup then self._popup.Visible = true; self._popup.ZIndex = 100 end
+	if self._arrow then self._arrow.Text = "▲" end
 	self:_rebuildOptions()
 end
 
 function MultiDropdown:Close()
 	if not self._open then return end
 	self._open = false
-	self._popup.Visible = false
-	self._arrow.Text = "▼"
+	PopupManager.RegisterClose(self)
+	if self._popup then self._popup.Visible = false end
+	if self._arrow then self._arrow.Text = "▼" end
 end
 
 function MultiDropdown:Get()
@@ -2224,6 +2342,7 @@ end
 
 function MultiDropdown:Destroy()
 	self:Close()
+	PopupManager.RegisterClose(self)
 	Component.Destroy(self)
 end
 
@@ -2615,6 +2734,25 @@ function Section:CreateIndicators(config)
 	return container
 end
 
+
+function Section:CreateCheckbox(config)
+	return self:CreateToggle(config)
+end
+
+function Section:CreateParagraph(config)
+	return self:CreateLabel(config)
+end
+
+function Section:CreateSpacer(config)
+	return self:CreateDivider(config)
+end
+
+function Section:CreateNotification(config)
+	-- Notifications are window-level; no-op section helper would be misleading
+	warn("[Wyvern] Use Window:Notify(...) for notifications")
+	return nil
+end
+
 function Section:SetVisible(visible)
 	self._instance.Visible = visible
 end
@@ -2787,6 +2925,7 @@ local Input = __wyvern_require("Core.Input")
 local Constants = __wyvern_require("Core.Constants")
 local Icons = __wyvern_require("Icons.Registry")
 local Notification = __wyvern_require("Core.Notification")
+local PopupManager = __wyvern_require("Core.PopupManager")
 
 local Window = {}
 Window.__index = Window
@@ -3257,6 +3396,21 @@ function Window.new(config, theme, scale)
 		end
 	end)
 
+	local cam = workspace.CurrentCamera
+	if cam then
+		self._maid:Give(cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			if self._destroyed or not self._main then return end
+			local pos = self._main.Position
+			local h = self._minimized and (Constants.HeaderHeight + 10) or Constants.WindowHeight
+			local x, y = clampPosition(pos.X.Offset, pos.Y.Offset, Constants.WindowWidth, h, self._scale)
+			self._main.Position = UDim2.fromOffset(x, y)
+			if not self._minimized then
+				self._savedPosition = self._main.Position
+			end
+			self:_syncSecondary()
+		end))
+	end
+
 	ActiveWindows[self._name] = self
 	return self
 end
@@ -3318,6 +3472,9 @@ function Window:CreateTab(config)
 end
 
 function Window:_onTabSelected(tab)
+	pcall(function()
+		PopupManager.CloseAll()
+	end)
 	for _, t in ipairs(self._tabs) do
 		if t ~= tab then
 			t:Deselect()
@@ -3371,6 +3528,10 @@ function Window:Minimize()
 	if self._destroyed or self._minimized then
 		return
 	end
+	-- Close any open dropdowns/popups so they don't float after chrome hides
+	pcall(function()
+		PopupManager.CloseAll()
+	end)
 	self._minimized = true
 	self._dragging = false
 	self._dragStart = nil

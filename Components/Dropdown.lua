@@ -5,6 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local Component = require(script.Parent.Parent.Core.Component)
 local Animation = require(script.Parent.Parent.Core.Animation)
 local Constants = require(script.Parent.Parent.Core.Constants)
+local PopupManager = require(script.Parent.Parent.Core.PopupManager)
 
 local Dropdown = setmetatable({}, { __index = Component })
 Dropdown.__index = Dropdown
@@ -155,19 +156,6 @@ function Dropdown.new(config, parent, theme)
 		end
 	end))
 
-	-- Close when clicking elsewhere
-	self._maid:Give(UserInputService.InputBegan:Connect(function(input)
-		if not self._open or self._destroyed then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			-- simple close; more precise hit-test can be added later
-			task.defer(function()
-				if self._open and not self._destroyed then
-					-- keep open only if still interacting with popup; for simplicity close after short delay is handled by option click
-				end
-			end)
-		end
-	end))
-
 	self._maid:Give(container)
 	return self
 end
@@ -222,19 +210,42 @@ function Dropdown:_rebuildOptions()
 	end
 end
 
+function Dropdown:IsPointInside(pos)
+	local function hit(gui)
+		if not gui or not gui.Visible then
+			return false
+		end
+		local ap = gui.AbsolutePosition
+		local as = gui.AbsoluteSize
+		return pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
+	end
+	return hit(self._box) or hit(self._popup)
+end
+
 function Dropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
+	PopupManager.RegisterOpen(self)
 	self._open = true
-	self._popup.Visible = true
-	self._arrow.Text = "▲"
+	if self._popup then
+		self._popup.Visible = true
+		self._popup.ZIndex = 100
+	end
+	if self._arrow then
+		self._arrow.Text = "▲"
+	end
 	self:_rebuildOptions()
 end
 
 function Dropdown:Close()
 	if not self._open then return end
 	self._open = false
-	self._popup.Visible = false
-	self._arrow.Text = "▼"
+	PopupManager.RegisterClose(self)
+	if self._popup then
+		self._popup.Visible = false
+	end
+	if self._arrow then
+		self._arrow.Text = "▼"
+	end
 end
 
 function Dropdown:Get()
@@ -310,6 +321,7 @@ end
 
 function Dropdown:Destroy()
 	self:Close()
+	PopupManager.RegisterClose(self)
 	Component.Destroy(self)
 end
 

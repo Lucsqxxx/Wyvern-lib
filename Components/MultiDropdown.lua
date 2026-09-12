@@ -3,6 +3,7 @@
 
 local Component = require(script.Parent.Parent.Core.Component)
 local Constants = require(script.Parent.Parent.Core.Constants)
+local PopupManager = require(script.Parent.Parent.Core.PopupManager)
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -215,19 +216,30 @@ function MultiDropdown:_rebuildOptions()
 	end
 end
 
+function MultiDropdown:IsPointInside(pos)
+	local function hit(gui)
+		if not gui or not gui.Visible then return false end
+		local ap, as = gui.AbsolutePosition, gui.AbsoluteSize
+		return pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
+	end
+	return hit(self._box) or hit(self._popup)
+end
+
 function MultiDropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
+	PopupManager.RegisterOpen(self)
 	self._open = true
-	self._popup.Visible = true
-	self._arrow.Text = "▲"
+	if self._popup then self._popup.Visible = true; self._popup.ZIndex = 100 end
+	if self._arrow then self._arrow.Text = "▲" end
 	self:_rebuildOptions()
 end
 
 function MultiDropdown:Close()
 	if not self._open then return end
 	self._open = false
-	self._popup.Visible = false
-	self._arrow.Text = "▼"
+	PopupManager.RegisterClose(self)
+	if self._popup then self._popup.Visible = false end
+	if self._arrow then self._arrow.Text = "▼" end
 end
 
 function MultiDropdown:Get()
@@ -299,6 +311,7 @@ end
 
 function MultiDropdown:Destroy()
 	self:Close()
+	PopupManager.RegisterClose(self)
 	Component.Destroy(self)
 end
 

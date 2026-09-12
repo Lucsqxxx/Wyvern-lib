@@ -12,6 +12,7 @@ local Input = require(script.Parent.Input)
 local Constants = require(script.Parent.Constants)
 local Icons = require(script.Parent.Parent.Icons.Registry)
 local Notification = require(script.Parent.Notification)
+local PopupManager = require(script.Parent.PopupManager)
 
 local Window = {}
 Window.__index = Window
@@ -482,6 +483,21 @@ function Window.new(config, theme, scale)
 		end
 	end)
 
+	local cam = workspace.CurrentCamera
+	if cam then
+		self._maid:Give(cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			if self._destroyed or not self._main then return end
+			local pos = self._main.Position
+			local h = self._minimized and (Constants.HeaderHeight + 10) or Constants.WindowHeight
+			local x, y = clampPosition(pos.X.Offset, pos.Y.Offset, Constants.WindowWidth, h, self._scale)
+			self._main.Position = UDim2.fromOffset(x, y)
+			if not self._minimized then
+				self._savedPosition = self._main.Position
+			end
+			self:_syncSecondary()
+		end))
+	end
+
 	ActiveWindows[self._name] = self
 	return self
 end
@@ -543,6 +559,9 @@ function Window:CreateTab(config)
 end
 
 function Window:_onTabSelected(tab)
+	pcall(function()
+		PopupManager.CloseAll()
+	end)
 	for _, t in ipairs(self._tabs) do
 		if t ~= tab then
 			t:Deselect()
@@ -596,6 +615,10 @@ function Window:Minimize()
 	if self._destroyed or self._minimized then
 		return
 	end
+	-- Close any open dropdowns/popups so they don't float after chrome hides
+	pcall(function()
+		PopupManager.CloseAll()
+	end)
 	self._minimized = true
 	self._dragging = false
 	self._dragStart = nil

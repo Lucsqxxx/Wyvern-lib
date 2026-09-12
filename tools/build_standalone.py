@@ -24,6 +24,7 @@ ORDER = [
     ("Core/Input.lua", "Core.Input"),
     ("Core/Search.lua", "Core.Search"),
     ("Core/Notification.lua", "Core.Notification"),
+    ("Core/PopupManager.lua", "Core.PopupManager"),
     ("Components/Button.lua", "Components.Button"),
     ("Components/Toggle.lua", "Components.Toggle"),
     ("Components/Slider.lua", "Components.Slider"),
