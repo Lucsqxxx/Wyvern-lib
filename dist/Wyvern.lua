@@ -1209,6 +1209,13 @@ builders.Scale = builders.Layers
 builders.Glass = builders.Cube
 builders.Center = builders.Target
 builders.Lock = builders.Cube
+builders.DropdownDown = builders.ChevronDown
+builders.DropdownUp = builders.ChevronUp
+builders.DockHome = builders.Home
+builders.DockTab1 = builders.Checklist
+builders.DockTab2 = builders.Layers
+builders.DockAbout = builders.Info
+builders.DockSettings = builders.Settings
 
 --- Create an icon inside parent. Returns root Frame and SetColor(color) helper.
 function Renderer.Create(parent, name, options)
@@ -1227,7 +1234,9 @@ function Renderer.Create(parent, name, options)
 
 	local r = root(holder, size, z + 1)
 	local builder = builders[name] or builders.Moss
-	builder(r, color, size)
+	if type(builder) == "function" then
+		builder(r, color, size)
+	end
 
 	local api = {}
 	function api:SetColor(c)
@@ -4869,8 +4878,14 @@ local MultiDropdown = __wyvern_require("Components.MultiDropdown")
 local Textbox = __wyvern_require("Components.Textbox")
 local ColorPicker = __wyvern_require("Components.ColorPicker")
 local Divider = __wyvern_require("Components.Divider")
-local Feature = __wyvern_require("Components.Feature")
-local ProgressBar = __wyvern_require("Components.ProgressBar")
+local Feature = nil
+local ProgressBar = nil
+pcall(function()
+	Feature = __wyvern_require("Components.Feature")
+end)
+pcall(function()
+	ProgressBar = __wyvern_require("Components.ProgressBar")
+end)
 local Flags = __wyvern_require("Core.Flags")
 
 local Section = {}
@@ -5071,6 +5086,10 @@ function Section:CreateNotification(config)
 end
 
 function Section:CreateProgressBar(config)
+	if not ProgressBar or not ProgressBar.new then
+		warn("[Wyvern] ProgressBar module unavailable")
+		return nil
+	end
 	local c = ProgressBar.new(config or {}, self._instance, self._theme, self._search, self._input)
 	table.insert(self._components, c)
 	return c
@@ -5081,6 +5100,10 @@ function Section:AddProgressBar(config)
 end
 
 function Section:CreateFeature(config)
+	if not Feature or not Feature.new then
+		warn("[Wyvern] Feature module unavailable")
+		return nil
+	end
 	config = config or {}
 	local feature = Feature.new(config, self._instance, self._theme, self._search, self._input)
 	table.insert(self._components, feature)
@@ -6132,7 +6155,12 @@ function Window:OpenSettings()
 		Name = "Center Window",
 		Callback = function()
 			if self._main then
-				local pos = centerPosition(Constants.WindowWidth, Constants.WindowHeight, self._scale)
+				local cam = workspace.CurrentCamera
+				local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+				local scale = self._scale or 1
+				local w = Constants.WindowWidth * scale
+				local h = Constants.WindowHeight * scale
+				local pos = UDim2.fromOffset(math.max(0, (vp.X - w) / 2), math.max(0, (vp.Y - h) / 2))
 				self._main.Position = pos
 				self._savedPosition = pos
 				self:_syncSecondary()
