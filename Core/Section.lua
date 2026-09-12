@@ -221,11 +221,6 @@ function Section:CreateFeature(config)
 	return feature
 end
 
--- Reference-style alias
-function Section:create_module(config)
-	return self:CreateFeature(config)
-end
-
 function Section:SetVisible(visible)
 	self._instance.Visible = visible
 end

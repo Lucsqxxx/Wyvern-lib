@@ -319,23 +319,6 @@ function Feature:CreateDivider(config)
 	return self:_add(Divider.new(config or {}, self._body, self._theme, self._search, self._input))
 end
 
--- snake_case aliases matching reference style
-function Feature:create_checkbox(c)
-	return self:CreateCheckbox(c)
-end
-function Feature:create_slider(c)
-	return self:CreateSlider(c)
-end
-function Feature:create_dropdown(c)
-	return self:CreateDropdown(c)
-end
-function Feature:create_textbox(c)
-	return self:CreateTextbox(c)
-end
-function Feature:create_button(c)
-	return self:CreateButton(c)
-end
-
 function Feature:GetEnabled()
 	return self._enabled
 end
