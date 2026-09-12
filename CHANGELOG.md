@@ -1,3 +1,10 @@
+## [1.0.2]
+
+### Fixed / Completed
+- Theme live updates via Component:BindTheme + ApplyTheme (Toggle, Button, Slider, Label, Dropdown, MultiDropdown, Window chrome)
+- MultiDropdown uses OverlayLayer screen-space positioning
+- Automated build validation: tests/validate_build.py
+
 ## [1.0.1] - Hardening
 
 ### Fixed

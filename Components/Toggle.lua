@@ -78,6 +78,9 @@ function Toggle.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then
+		self:BindTheme(theme)
+	end
 	return self
 end
 
@@ -115,6 +118,21 @@ end
 
 function Toggle:Reset()
 	self:Set(false)
+end
+
+function Toggle:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then
+		self._label.TextColor3 = self._enabled and theme:Get("Text") or theme:Get("TextDisabled")
+	end
+	if self._switch then
+		self._switch.BackgroundColor3 = self._value and theme:Get("ToggleOn") or theme:Get("ToggleOff")
+	end
+	if self._stroke then
+		self._stroke.Color = theme:Get("Border")
+	end
 end
 
 return Toggle

@@ -305,3 +305,14 @@ Destroys all Instances, connections, signals, search registrations, and keybind 
 ## License
 
 Free to use and modify. Attribution to Lucsqx appreciated.
+
+
+## Settings
+
+Bottom-nav **Settings** (last icon) opens a real Settings tab:
+
+- UI Scale
+- Accent / Background / Surface colors
+- Center window / Reset scale
+
+Theme changes notify subscribed components without recreating the window.

@@ -58,6 +58,27 @@ function Component:OnChanged(callback)
 	end
 end
 
+-- Subscribe to Theme:OnChanged. Component should implement :ApplyTheme(theme).
+function Component:BindTheme(theme)
+	if not theme or type(theme.OnChanged) ~= "function" then
+		return
+	end
+	self._theme = theme
+	local unsub = theme:OnChanged(function()
+		if self._destroyed then
+			return
+		end
+		if type(self.ApplyTheme) == "function" then
+			self:ApplyTheme(theme)
+		end
+	end)
+	self._maid:Give(function()
+		if type(unsub) == "function" then
+			unsub()
+		end
+	end)
+end
+
 function Component:SetVisible(visible)
 	if self._destroyed then return end
 	self._visible = visible and true or false

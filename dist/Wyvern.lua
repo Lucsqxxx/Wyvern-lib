@@ -547,6 +547,27 @@ function Component:OnChanged(callback)
 	end
 end
 
+-- Subscribe to Theme:OnChanged. Component should implement :ApplyTheme(theme).
+function Component:BindTheme(theme)
+	if not theme or type(theme.OnChanged) ~= "function" then
+		return
+	end
+	self._theme = theme
+	local unsub = theme:OnChanged(function()
+		if self._destroyed then
+			return
+		end
+		if type(self.ApplyTheme) == "function" then
+			self:ApplyTheme(theme)
+		end
+	end)
+	self._maid:Give(function()
+		if type(unsub) == "function" then
+			unsub()
+		end
+	end)
+end
+
 function Component:SetVisible(visible)
 	if self._destroyed then return end
 	self._visible = visible and true or false
@@ -1141,6 +1162,16 @@ function Button:SetEnabled(enabled)
 	self._instance.BackgroundColor3 = enabled and self._theme:Get("Button") or self._theme:Get("SurfaceSecondary")
 end
 
+function Button:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._button then
+		self._button.BackgroundColor3 = theme:Get("Button")
+		self._button.TextColor3 = theme:Get("Text")
+	end
+end
+
 return Button
 end)
 
@@ -1229,6 +1260,9 @@ function Toggle.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then
+		self:BindTheme(theme)
+	end
 	return self
 end
 
@@ -1266,6 +1300,21 @@ end
 
 function Toggle:Reset()
 	self:Set(false)
+end
+
+function Toggle:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then
+		self._label.TextColor3 = self._enabled and theme:Get("Text") or theme:Get("TextDisabled")
+	end
+	if self._switch then
+		self._switch.BackgroundColor3 = self._value and theme:Get("ToggleOn") or theme:Get("ToggleOff")
+	end
+	if self._stroke then
+		self._stroke.Color = theme:Get("Border")
+	end
 end
 
 return Toggle
@@ -1456,6 +1505,7 @@ function Slider.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -1505,6 +1555,17 @@ end
 
 function Slider:Reset()
 	self:Set(self._min)
+end
+
+function Slider:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("Text") end
+	if self._valueLabel then self._valueLabel.TextColor3 = theme:Get("TextSecondary") end
+	if self._track then self._track.BackgroundColor3 = theme:Get("SliderTrack") end
+	if self._fill then self._fill.BackgroundColor3 = theme:Get("SliderFill") end
+	if self._knob then self._knob.BackgroundColor3 = theme:Get("Accent") end
 end
 
 return Slider
@@ -1693,11 +1754,19 @@ function Label.new(config, parent, theme)
 	self._text = text
 
 	self._maid:Give(frame)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
 function Label:SetText(text)
 	self._text.Text = text or ""
+end
+
+function Label:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("TextSecondary") end
 end
 
 return Label
@@ -1867,6 +1936,7 @@ function Dropdown.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -2071,6 +2141,17 @@ function Dropdown:SetEnabled(enabled)
 	end
 end
 
+function Dropdown:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("Text") end
+	if self._box then self._box.BackgroundColor3 = theme:Get("SurfaceSecondary") end
+	if self._text then self._text.TextColor3 = theme:Get("Text") end
+	if self._arrow then self._arrow.TextColor3 = theme:Get("TextSecondary") end
+	if self._popup then self._popup.BackgroundColor3 = theme:Get("Surface") end
+end
+
 function Dropdown:Destroy()
 	self:Close()
 	PopupManager.RegisterClose(self)
@@ -2091,6 +2172,7 @@ __wyvern_define("Components.MultiDropdown", function()
 local Component = __wyvern_require("Core.Component")
 local Constants = __wyvern_require("Core.Constants")
 local PopupManager = __wyvern_require("Core.PopupManager")
+local Constants = __wyvern_require("Core.Constants")
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -2233,6 +2315,7 @@ function MultiDropdown.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -2312,21 +2395,68 @@ function MultiDropdown:IsPointInside(pos)
 	return hit(self._box) or hit(self._popup)
 end
 
+function MultiDropdown:_positionPopup()
+	if not self._popup or not self._box then return end
+	local overlay = PopupManager.GetOverlay()
+	local box, popup = self._box, self._popup
+	local absPos, absSize = box.AbsolutePosition, box.AbsoluteSize
+	local parent = overlay or box
+	if popup.Parent ~= parent then popup.Parent = parent end
+	if overlay and parent == overlay then
+		local oAbs = overlay.AbsolutePosition
+		local x = absPos.X - oAbs.X
+		local y = absPos.Y - oAbs.Y + absSize.Y + 4
+		local popupH = math.min(#self._options, 6) * 26 + 10
+		local cam = workspace.CurrentCamera
+		local vpY = cam and cam.ViewportSize.Y or 1080
+		if absPos.Y + absSize.Y + 4 + popupH > vpY - 8 then
+			y = absPos.Y - oAbs.Y - popupH - 4
+		end
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(absSize.X, popupH)
+	else
+		popup.Position = UDim2.new(0, 0, 1, 4)
+		popup.Size = UDim2.new(1, 0, 0, math.min(#self._options, 6) * 26 + 10)
+	end
+end
+
 function MultiDropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
 	PopupManager.RegisterOpen(self)
 	self._open = true
-	if self._popup then self._popup.Visible = true; self._popup.ZIndex = 100 end
-	if self._arrow then self._arrow.Text = "▲" end
 	self:_rebuildOptions()
+	self:_positionPopup()
+	if self._popup then
+		self._popup.Visible = true
+		self._popup.ZIndex = (Constants and Constants.ZIndex and Constants.ZIndex.Dropdown) or 90
+	end
+	if self._arrow then self._arrow.Text = "▲" end
 end
 
 function MultiDropdown:Close()
 	if not self._open then return end
 	self._open = false
 	PopupManager.RegisterClose(self)
-	if self._popup then self._popup.Visible = false end
+	if self._popup then
+		self._popup.Visible = false
+		if self._box then
+			self._popup.Parent = self._box
+			self._popup.Position = UDim2.new(0, 0, 1, 4)
+			self._popup.Size = UDim2.new(1, 0, 0, 0)
+		end
+	end
 	if self._arrow then self._arrow.Text = "▼" end
+end
+
+function MultiDropdown:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("Text") end
+	if self._box then self._box.BackgroundColor3 = theme:Get("SurfaceSecondary") end
+	if self._text then self._text.TextColor3 = theme:Get("Text") end
+	if self._arrow then self._arrow.TextColor3 = theme:Get("TextSecondary") end
+	if self._popup then self._popup.BackgroundColor3 = theme:Get("Surface") end
 end
 
 function MultiDropdown:Get()
@@ -3514,8 +3644,40 @@ function Window.new(config, theme, scale)
 		end))
 	end
 
+	if theme and theme.OnChanged then
+		local unsub = theme:OnChanged(function()
+			if self._destroyed then return end
+			self:_applyChromeTheme()
+		end)
+		self._maid:Give(function()
+			if type(unsub) == "function" then unsub() end
+		end)
+	end
+
 	ActiveWindows[self._name] = self
 	return self
+end
+
+
+function Window:_applyChromeTheme()
+	if self._destroyed or not self._theme then return end
+	local theme = self._theme
+	if self._main then
+		self._main.BackgroundColor3 = theme:Get("Background")
+	end
+	local stroke = self._main and self._main:FindFirstChildOfClass("UIStroke")
+	if stroke then stroke.Color = theme:Get("Border") end
+	if self._titleLabel then self._titleLabel.TextColor3 = theme:Get("Text") end
+	if self._versionLabel then self._versionLabel.TextColor3 = theme:Get("TextSecondary") end
+	local logo = self._header and self._header:FindFirstChild("Logo")
+	if logo then logo.ImageColor3 = theme:Get("Accent") end
+	if self._searchFrame then self._searchFrame.BackgroundColor3 = theme:Get("SurfaceSecondary") end
+	if self._searchBox then
+		self._searchBox.TextColor3 = theme:Get("Text")
+		self._searchBox.PlaceholderColor3 = theme:Get("TextDisabled")
+	end
+	if self._bottomNav then self._bottomNav.BackgroundColor3 = theme:Get("NavBackground") end
+	if self._secondary then self._secondary.BackgroundColor3 = theme:Get("NavBackground") end
 end
 
 function Window:_syncSecondary()

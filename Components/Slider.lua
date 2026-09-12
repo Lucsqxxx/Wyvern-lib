@@ -178,6 +178,7 @@ function Slider.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -227,6 +228,17 @@ end
 
 function Slider:Reset()
 	self:Set(self._min)
+end
+
+function Slider:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("Text") end
+	if self._valueLabel then self._valueLabel.TextColor3 = theme:Get("TextSecondary") end
+	if self._track then self._track.BackgroundColor3 = theme:Get("SliderTrack") end
+	if self._fill then self._fill.BackgroundColor3 = theme:Get("SliderFill") end
+	if self._knob then self._knob.BackgroundColor3 = theme:Get("Accent") end
 end
 
 return Slider

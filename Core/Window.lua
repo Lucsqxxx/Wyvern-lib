@@ -545,8 +545,40 @@ function Window.new(config, theme, scale)
 		end))
 	end
 
+	if theme and theme.OnChanged then
+		local unsub = theme:OnChanged(function()
+			if self._destroyed then return end
+			self:_applyChromeTheme()
+		end)
+		self._maid:Give(function()
+			if type(unsub) == "function" then unsub() end
+		end)
+	end
+
 	ActiveWindows[self._name] = self
 	return self
+end
+
+
+function Window:_applyChromeTheme()
+	if self._destroyed or not self._theme then return end
+	local theme = self._theme
+	if self._main then
+		self._main.BackgroundColor3 = theme:Get("Background")
+	end
+	local stroke = self._main and self._main:FindFirstChildOfClass("UIStroke")
+	if stroke then stroke.Color = theme:Get("Border") end
+	if self._titleLabel then self._titleLabel.TextColor3 = theme:Get("Text") end
+	if self._versionLabel then self._versionLabel.TextColor3 = theme:Get("TextSecondary") end
+	local logo = self._header and self._header:FindFirstChild("Logo")
+	if logo then logo.ImageColor3 = theme:Get("Accent") end
+	if self._searchFrame then self._searchFrame.BackgroundColor3 = theme:Get("SurfaceSecondary") end
+	if self._searchBox then
+		self._searchBox.TextColor3 = theme:Get("Text")
+		self._searchBox.PlaceholderColor3 = theme:Get("TextDisabled")
+	end
+	if self._bottomNav then self._bottomNav.BackgroundColor3 = theme:Get("NavBackground") end
+	if self._secondary then self._secondary.BackgroundColor3 = theme:Get("NavBackground") end
 end
 
 function Window:_syncSecondary()

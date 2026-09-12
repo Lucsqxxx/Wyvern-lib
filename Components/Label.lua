@@ -33,11 +33,19 @@ function Label.new(config, parent, theme)
 	self._text = text
 
 	self._maid:Give(frame)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
 function Label:SetText(text)
 	self._text.Text = text or ""
+end
+
+function Label:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("TextSecondary") end
 end
 
 return Label

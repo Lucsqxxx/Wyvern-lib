@@ -157,6 +157,7 @@ function Dropdown.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -359,6 +360,17 @@ function Dropdown:SetEnabled(enabled)
 	if not self._enabled then
 		self:Close()
 	end
+end
+
+function Dropdown:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("Text") end
+	if self._box then self._box.BackgroundColor3 = theme:Get("SurfaceSecondary") end
+	if self._text then self._text.TextColor3 = theme:Get("Text") end
+	if self._arrow then self._arrow.TextColor3 = theme:Get("TextSecondary") end
+	if self._popup then self._popup.BackgroundColor3 = theme:Get("Surface") end
 end
 
 function Dropdown:Destroy()

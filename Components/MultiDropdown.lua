@@ -4,6 +4,7 @@
 local Component = require(script.Parent.Parent.Core.Component)
 local Constants = require(script.Parent.Parent.Core.Constants)
 local PopupManager = require(script.Parent.Parent.Core.PopupManager)
+local Constants = require(script.Parent.Parent.Core.Constants)
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -146,6 +147,7 @@ function MultiDropdown.new(config, parent, theme)
 	end))
 
 	self._maid:Give(container)
+	if theme and theme.OnChanged then self:BindTheme(theme) end
 	return self
 end
 
@@ -225,21 +227,68 @@ function MultiDropdown:IsPointInside(pos)
 	return hit(self._box) or hit(self._popup)
 end
 
+function MultiDropdown:_positionPopup()
+	if not self._popup or not self._box then return end
+	local overlay = PopupManager.GetOverlay()
+	local box, popup = self._box, self._popup
+	local absPos, absSize = box.AbsolutePosition, box.AbsoluteSize
+	local parent = overlay or box
+	if popup.Parent ~= parent then popup.Parent = parent end
+	if overlay and parent == overlay then
+		local oAbs = overlay.AbsolutePosition
+		local x = absPos.X - oAbs.X
+		local y = absPos.Y - oAbs.Y + absSize.Y + 4
+		local popupH = math.min(#self._options, 6) * 26 + 10
+		local cam = workspace.CurrentCamera
+		local vpY = cam and cam.ViewportSize.Y or 1080
+		if absPos.Y + absSize.Y + 4 + popupH > vpY - 8 then
+			y = absPos.Y - oAbs.Y - popupH - 4
+		end
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(absSize.X, popupH)
+	else
+		popup.Position = UDim2.new(0, 0, 1, 4)
+		popup.Size = UDim2.new(1, 0, 0, math.min(#self._options, 6) * 26 + 10)
+	end
+end
+
 function MultiDropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
 	PopupManager.RegisterOpen(self)
 	self._open = true
-	if self._popup then self._popup.Visible = true; self._popup.ZIndex = 100 end
-	if self._arrow then self._arrow.Text = "▲" end
 	self:_rebuildOptions()
+	self:_positionPopup()
+	if self._popup then
+		self._popup.Visible = true
+		self._popup.ZIndex = (Constants and Constants.ZIndex and Constants.ZIndex.Dropdown) or 90
+	end
+	if self._arrow then self._arrow.Text = "▲" end
 end
 
 function MultiDropdown:Close()
 	if not self._open then return end
 	self._open = false
 	PopupManager.RegisterClose(self)
-	if self._popup then self._popup.Visible = false end
+	if self._popup then
+		self._popup.Visible = false
+		if self._box then
+			self._popup.Parent = self._box
+			self._popup.Position = UDim2.new(0, 0, 1, 4)
+			self._popup.Size = UDim2.new(1, 0, 0, 0)
+		end
+	end
 	if self._arrow then self._arrow.Text = "▼" end
+end
+
+function MultiDropdown:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._label then self._label.TextColor3 = theme:Get("Text") end
+	if self._box then self._box.BackgroundColor3 = theme:Get("SurfaceSecondary") end
+	if self._text then self._text.TextColor3 = theme:Get("Text") end
+	if self._arrow then self._arrow.TextColor3 = theme:Get("TextSecondary") end
+	if self._popup then self._popup.BackgroundColor3 = theme:Get("Surface") end
 end
 
 function MultiDropdown:Get()

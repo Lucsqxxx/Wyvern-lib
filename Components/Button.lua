@@ -84,4 +84,14 @@ function Button:SetEnabled(enabled)
 	self._instance.BackgroundColor3 = enabled and self._theme:Get("Button") or self._theme:Get("SurfaceSecondary")
 end
 
+function Button:ApplyTheme(theme)
+	theme = theme or self._theme
+	if not theme or self._destroyed then return end
+	self._theme = theme
+	if self._button then
+		self._button.BackgroundColor3 = theme:Get("Button")
+		self._button.TextColor3 = theme:Get("Text")
+	end
+end
+
 return Button
