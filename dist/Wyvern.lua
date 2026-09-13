@@ -2097,6 +2097,843 @@ end)
 
 -- ===== END Core.Flags =====
 
+-- ===== BEGIN Components.Switch (Components/Switch.lua) =====
+
+__wyvern_define("Components.Switch", function()
+-- Components/Switch.lua — alias of Toggle with Name defaults for switch semantics
+local Toggle = __wyvern_require("Core.Toggle")
+local Switch = {}
+function Switch.new(config, parent, theme, search, input)
+	config = config or {}
+	config.Name = config.Name or config.Title or "Switch"
+	return Toggle.new(config, parent, theme, search, input)
+end
+return Switch
+end)
+
+-- ===== END Components.Switch =====
+
+-- ===== BEGIN Components.RadioGroup (Components/RadioGroup.lua) =====
+
+__wyvern_define("Components.RadioGroup", function()
+-- Components/RadioGroup.lua
+local Component = __wyvern_require("Core.Component")
+
+local RadioGroup = setmetatable({}, { __index = Component })
+RadioGroup.__index = RadioGroup
+
+function RadioGroup.new(config, parent, theme)
+	config = config or {}
+	local self = setmetatable(Component.new(config), RadioGroup)
+	self._theme = theme
+	self._options = config.Options or {}
+	self._value = config.Default or self._options[1]
+	self._buttons = {}
+
+	local root = Instance.new("Frame")
+	root.Name = "RadioGroup"
+	root.BackgroundTransparency = 1
+	root.Size = UDim2.new(1, 0, 0, 0)
+	root.AutomaticSize = Enum.AutomaticSize.Y
+	root.ClipsDescendants = true
+	root.Parent = parent
+	self._instance = root
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0, 16)
+	title.Font = Enum.Font.Gotham
+	title.TextSize = 12
+	title.TextColor3 = theme:Get("Text")
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextTruncate = Enum.TextTruncate.AtEnd
+	title.Text = config.Name or config.Title or "Options"
+	title.Parent = root
+
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0, 4)
+	list.Parent = root
+
+	for i, opt in ipairs(self._options) do
+		local row = Instance.new("TextButton")
+		row.Name = "Opt_" .. i
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, 22)
+		row.LayoutOrder = i
+		row.Text = ""
+		row.Parent = root
+
+		local dot = Instance.new("Frame")
+		dot.Size = UDim2.fromOffset(14, 14)
+		dot.Position = UDim2.new(0, 0, 0.5, -7)
+		dot.BackgroundColor3 = theme:Get("Surface")
+		dot.BorderSizePixel = 0
+		dot.Parent = row
+		Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = theme:Get("Border")
+		stroke.Parent = dot
+		local inner = Instance.new("Frame")
+		inner.Name = "Inner"
+		inner.AnchorPoint = Vector2.new(0.5, 0.5)
+		inner.Position = UDim2.fromScale(0.5, 0.5)
+		inner.Size = UDim2.fromOffset(8, 8)
+		inner.BackgroundColor3 = theme:Get("Accent")
+		inner.BorderSizePixel = 0
+		inner.Visible = (opt == self._value)
+		inner.Parent = dot
+		Instance.new("UICorner", inner).CornerRadius = UDim.new(1, 0)
+
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.new(0, 22, 0, 0)
+		label.Size = UDim2.new(1, -22, 1, 0)
+		label.Font = Enum.Font.Gotham
+		label.TextSize = 12
+		label.TextColor3 = theme:Get("Text")
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.Text = tostring(opt)
+		label.Parent = row
+
+		row.MouseButton1Click:Connect(function()
+			if not self:GetEnabled() then return end
+			self:Set(opt)
+		end)
+		self._buttons[opt] = inner
+	end
+
+	self._maid:Give(root)
+	return self
+end
+
+function RadioGroup:Set(value)
+	if self._destroyed then return end
+	self._value = value
+	for opt, inner in pairs(self._buttons) do
+		inner.Visible = (opt == value)
+	end
+	Component.Set(self, value)
+end
+
+function RadioGroup:GetValue()
+	return self:Get()
+end
+function RadioGroup:SetValue(v)
+	self:Set(v)
+end
+
+return RadioGroup
+end)
+
+-- ===== END Components.RadioGroup =====
+
+-- ===== BEGIN Components.Table (Components/Table.lua) =====
+
+__wyvern_define("Components.Table", function()
+-- Components/Table.lua
+local Component = __wyvern_require("Core.Component")
+
+local Table = setmetatable({}, { __index = Component })
+Table.__index = Table
+
+function Table.new(config, parent, theme)
+	config = config or {}
+	local self = setmetatable(Component.new(config), Table)
+	self._theme = theme
+	self._columns = config.Columns or {}
+	self._rows = config.Rows or {}
+	self._sortCol = nil
+	self._sortAsc = true
+
+	local root = Instance.new("Frame")
+	root.Name = "Table"
+	root.BackgroundTransparency = 1
+	root.Size = UDim2.new(1, 0, 0, 0)
+	root.AutomaticSize = Enum.AutomaticSize.Y
+	root.ClipsDescendants = true
+	root.Parent = parent
+	self._instance = root
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0, 16)
+	title.Font = Enum.Font.GothamMedium
+	title.TextSize = 12
+	title.TextColor3 = theme:Get("Text")
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextTruncate = Enum.TextTruncate.AtEnd
+	title.Text = config.Name or config.Title or "Table"
+	title.Parent = root
+
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.BackgroundColor3 = theme:Get("SurfaceSecondary") or theme:Get("Surface")
+	scroll.BackgroundTransparency = 0.3
+	scroll.BorderSizePixel = 0
+	scroll.Size = UDim2.new(1, 0, 0, config.Height or 140)
+	scroll.Position = UDim2.new(0, 0, 0, 20)
+	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.ScrollBarThickness = 4
+	scroll.ClipsDescendants = true
+	scroll.Parent = root
+	Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 6)
+	self._scroll = scroll
+
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = scroll
+
+	self:_rebuild()
+	self._maid:Give(root)
+	return self
+end
+
+function Table:_rebuild()
+	if not self._scroll then return end
+	for _, ch in ipairs(self._scroll:GetChildren()) do
+		if ch:IsA("Frame") or ch:IsA("TextLabel") then
+			ch:Destroy()
+		end
+	end
+	local theme = self._theme
+	local colCount = math.max(1, #self._columns)
+	-- header
+	local header = Instance.new("Frame")
+	header.BackgroundTransparency = 1
+	header.Size = UDim2.new(1, 0, 0, 22)
+	header.LayoutOrder = 0
+	header.Parent = self._scroll
+	for i, col in ipairs(self._columns) do
+		local cell = Instance.new("TextButton")
+		cell.BackgroundTransparency = 1
+		cell.Size = UDim2.new(1 / colCount, -2, 1, 0)
+		cell.Position = UDim2.new((i - 1) / colCount, 0, 0, 0)
+		cell.Font = Enum.Font.GothamMedium
+		cell.TextSize = 11
+		cell.TextColor3 = theme:Get("TextSecondary") or theme:Get("Text")
+		cell.TextXAlignment = Enum.TextXAlignment.Left
+		cell.TextTruncate = Enum.TextTruncate.AtEnd
+		cell.Text = tostring(col)
+		cell.Parent = header
+		local idx = i
+		cell.MouseButton1Click:Connect(function()
+			if self._sortCol == idx then
+				self._sortAsc = not self._sortAsc
+			else
+				self._sortCol = idx
+				self._sortAsc = true
+			end
+			self:_sort()
+			self:_rebuild()
+		end)
+	end
+	if #self._rows == 0 then
+		local empty = Instance.new("TextLabel")
+		empty.BackgroundTransparency = 1
+		empty.Size = UDim2.new(1, 0, 0, 28)
+		empty.Font = Enum.Font.Gotham
+		empty.TextSize = 12
+		empty.TextColor3 = theme:Get("TextMuted") or theme:Get("TextSecondary") or theme:Get("Text")
+		empty.Text = "No rows"
+		empty.LayoutOrder = 1
+		empty.Parent = self._scroll
+		return
+	end
+	for r, row in ipairs(self._rows) do
+		local line = Instance.new("Frame")
+		line.BackgroundTransparency = 1
+		line.Size = UDim2.new(1, 0, 0, 22)
+		line.LayoutOrder = r
+		line.Parent = self._scroll
+		for i = 1, colCount do
+			local cell = Instance.new("TextLabel")
+			cell.BackgroundTransparency = 1
+			cell.Size = UDim2.new(1 / colCount, -2, 1, 0)
+			cell.Position = UDim2.new((i - 1) / colCount, 0, 0, 0)
+			cell.Font = Enum.Font.Gotham
+			cell.TextSize = 11
+			cell.TextColor3 = theme:Get("Text")
+			cell.TextXAlignment = Enum.TextXAlignment.Left
+			cell.TextTruncate = Enum.TextTruncate.AtEnd
+			cell.Text = tostring(row[i] or "")
+			cell.Parent = line
+		end
+	end
+end
+
+function Table:_sort()
+	if not self._sortCol then return end
+	local col = self._sortCol
+	local asc = self._sortAsc
+	table.sort(self._rows, function(a, b)
+		local av, bv = tostring(a[col] or ""), tostring(b[col] or "")
+		if asc then return av < bv else return av > bv end
+	end)
+end
+
+function Table:SetRows(rows)
+	self._rows = rows or {}
+	self:_rebuild()
+end
+function Table:GetRows()
+	return self._rows
+end
+function Table:AddRow(row)
+	table.insert(self._rows, row)
+	self:_rebuild()
+end
+function Table:RemoveRow(index)
+	if self._rows[index] then
+		table.remove(self._rows, index)
+		self:_rebuild()
+	end
+end
+function Table:Clear()
+	table.clear(self._rows)
+	self:_rebuild()
+end
+function Table:Refresh()
+	self:_rebuild()
+end
+
+return Table
+end)
+
+-- ===== END Components.Table =====
+
+-- ===== BEGIN Components.Layout (Components/Layout.lua) =====
+
+__wyvern_define("Components.Layout", function()
+-- Components/Layout.lua — Row / Column / Card / Group / Container
+local Maid = __wyvern_require("Core.Maid")
+local Constants = __wyvern_require("Core.Constants")
+
+local Layout = {}
+Layout.__index = Layout
+
+local function makeContainer(kind, config, parent, theme)
+	config = config or {}
+	local self = setmetatable({
+		_maid = Maid.new(),
+		_theme = theme,
+		_kind = kind,
+		_components = {},
+		_destroyed = false,
+	}, Layout)
+
+	local frame = Instance.new("Frame")
+	frame.Name = kind
+	frame.BackgroundTransparency = (kind == "Card" or kind == "Group") and 0 or 1
+	if kind == "Card" or kind == "Group" then
+		frame.BackgroundColor3 = theme:Get("SurfaceSecondary") or theme:Get("Surface")
+	end
+	frame.BorderSizePixel = 0
+	frame.Size = UDim2.new(1, 0, 0, 0)
+	frame.AutomaticSize = Enum.AutomaticSize.Y
+	frame.ClipsDescendants = true
+	frame.Parent = parent
+	self._instance = frame
+
+	if kind == "Card" or kind == "Group" then
+		Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = theme:Get("Border")
+		stroke.Transparency = 0.55
+		stroke.Parent = frame
+		local pad = Instance.new("UIPadding")
+		pad.PaddingTop = UDim.new(0, config.Padding or 8)
+		pad.PaddingBottom = UDim.new(0, config.Padding or 8)
+		pad.PaddingLeft = UDim.new(0, config.Padding or 10)
+		pad.PaddingRight = UDim.new(0, config.Padding or 10)
+		pad.Parent = frame
+	end
+
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0, config.Gap or (Constants.ComponentSpacing or 6))
+	if kind == "Row" then
+		list.FillDirection = Enum.FillDirection.Horizontal
+		list.VerticalAlignment = Enum.VerticalAlignment.Center
+	else
+		list.FillDirection = Enum.FillDirection.Vertical
+	end
+	list.Parent = frame
+
+	self._maid:Give(frame)
+	return self
+end
+
+function Layout.Row(config, parent, theme)
+	return makeContainer("Row", config, parent, theme)
+end
+function Layout.Column(config, parent, theme)
+	return makeContainer("Column", config, parent, theme)
+end
+function Layout.Card(config, parent, theme)
+	return makeContainer("Card", config, parent, theme)
+end
+function Layout.Group(config, parent, theme)
+	return makeContainer("Group", config, parent, theme)
+end
+function Layout.Container(config, parent, theme)
+	return makeContainer("Container", config, parent, theme)
+end
+
+function Layout:_host()
+	return self._instance
+end
+
+function Layout:GetInstance()
+	return self._instance
+end
+
+-- Forward component factories by requiring Section's modules lazily via shared loaders
+local function factories(self)
+	local parent = self._instance
+	local theme = self._theme
+	local Button = __wyvern_require("Core.Button")
+	local Toggle = __wyvern_require("Core.Toggle")
+	local Slider = __wyvern_require("Core.Slider")
+	local Label = __wyvern_require("Core.Label")
+	local Dropdown = __wyvern_require("Core.Dropdown")
+	local Textbox = __wyvern_require("Core.Textbox")
+	local function wrap(ctor, config)
+		if self._destroyed then return nil end
+		local c = ctor(config or {}, parent, theme, nil, nil)
+		if c and c._instance and self._kind == "Row" then
+			-- equal share in row
+			c._instance.Size = UDim2.new(0, 0, 0, c._instance.Size.Y.Offset)
+			c._instance.Size = UDim2.new(1, 0, 0, c._instance.Size.Y.Offset)
+			-- for horizontal, use flexible width
+			pcall(function()
+				c._instance.Size = UDim2.new(0.5, -4, 0, math.max(28, c._instance.Size.Y.Offset))
+			end)
+		end
+		table.insert(self._components, c)
+		return c
+	end
+	return {
+		AddButton = function(_, c) return wrap(Button.new, c) end,
+		AddToggle = function(_, c) return wrap(Toggle.new, c) end,
+		AddSlider = function(_, c) return wrap(Slider.new, c) end,
+		AddLabel = function(_, c) return wrap(Label.new, c) end,
+		AddDropdown = function(_, c) return wrap(Dropdown.new, c) end,
+		AddTextbox = function(_, c) return wrap(Textbox.new, c) end,
+	}
+end
+
+function Layout:AddButton(c) return factories(self).AddButton(self, c) end
+function Layout:AddToggle(c) return factories(self).AddToggle(self, c) end
+function Layout:AddSlider(c) return factories(self).AddSlider(self, c) end
+function Layout:AddLabel(c) return factories(self).AddLabel(self, c) end
+function Layout:AddDropdown(c) return factories(self).AddDropdown(self, c) end
+function Layout:AddTextbox(c) return factories(self).AddTextbox(self, c) end
+
+function Layout:Destroy()
+	if self._destroyed then return end
+	self._destroyed = true
+	for _, c in ipairs(self._components) do
+		pcall(function() c:Destroy() end)
+	end
+	self._maid:Destroy()
+end
+
+return Layout
+end)
+
+-- ===== END Components.Layout =====
+
+-- ===== BEGIN Core.ThemeRegistry (Core/ThemeRegistry.lua) =====
+
+__wyvern_define("Core.ThemeRegistry", function()
+-- Core/ThemeRegistry.lua
+local Theme = __wyvern_require("Core.Theme")
+
+local REQUIRED = {
+	"Background", "Surface", "Border", "Accent", "Text",
+}
+
+local ThemeRegistry = {
+	_themes = {},
+	_currentName = "Default",
+	_active = nil,
+}
+
+local function validate(themeTable)
+	if type(themeTable) ~= "table" then
+		return false, "theme must be a table"
+	end
+	for _, k in ipairs(REQUIRED) do
+		local v = themeTable[k]
+		if typeof(v) ~= "Color3" then
+			return false, "missing/invalid Color3 token: " .. k
+		end
+	end
+	return true
+end
+
+function ThemeRegistry.Register(name, themeTable)
+	if type(name) ~= "string" or name == "" then
+		warn("[Wyvern] RegisterTheme: invalid name")
+		return false
+	end
+	local ok, err = validate(themeTable)
+	if not ok then
+		warn("[Wyvern] RegisterTheme:", err)
+		return false
+	end
+	ThemeRegistry._themes[name] = themeTable
+	return true
+end
+
+function ThemeRegistry.Set(name)
+	local data = ThemeRegistry._themes[name]
+	if not data then
+		warn("[Wyvern] unknown theme:", name)
+		return false
+	end
+	ThemeRegistry._currentName = name
+	if ThemeRegistry._active then
+		ThemeRegistry._active:Apply(data)
+	else
+		ThemeRegistry._active = Theme.new(data)
+	end
+	return true
+end
+
+function ThemeRegistry.GetActive()
+	return ThemeRegistry._active
+end
+
+function ThemeRegistry.GetName()
+	return ThemeRegistry._currentName
+end
+
+function ThemeRegistry.GetNames()
+	local names = {}
+	for k in pairs(ThemeRegistry._themes) do
+		table.insert(names, k)
+	end
+	table.sort(names)
+	return names
+end
+
+function ThemeRegistry.BindActive(themeObj)
+	ThemeRegistry._active = themeObj
+end
+
+return ThemeRegistry
+end)
+
+-- ===== END Core.ThemeRegistry =====
+
+-- ===== BEGIN Core.SearchIndex (Core/SearchIndex.lua) =====
+
+__wyvern_define("Core.SearchIndex", function()
+-- Core/SearchIndex.lua — framework-wide search index (Search V2)
+local SearchIndex = {}
+SearchIndex.__index = SearchIndex
+
+function SearchIndex.new()
+	return setmetatable({ _items = {}, _byId = {} }, SearchIndex)
+end
+
+function SearchIndex:Register(entry)
+	if type(entry) ~= "table" or type(entry.Id) ~= "string" then
+		return false
+	end
+	if self._byId[entry.Id] then
+		self._byId[entry.Id] = entry
+		return true
+	end
+	table.insert(self._items, entry)
+	self._byId[entry.Id] = entry
+	return true
+end
+
+function SearchIndex:Unregister(id)
+	if not id then
+		return
+	end
+	self._byId[id] = nil
+	for i = #self._items, 1, -1 do
+		if self._items[i].Id == id then
+			table.remove(self._items, i)
+		end
+	end
+end
+
+function SearchIndex:Search(query)
+	query = string.lower(tostring(query or ""))
+	if query == "" then
+		return {}
+	end
+	local out = {}
+	for _, e in ipairs(self._items) do
+		local hay = string.lower(table.concat({
+			tostring(e.Title or ""),
+			tostring(e.Description or ""),
+			tostring(e.Category or ""),
+			table.concat(e.Keywords or {}, " "),
+		}, " "))
+		if string.find(hay, query, 1, true) then
+			table.insert(out, e)
+		end
+	end
+	return out
+end
+
+function SearchIndex:Count()
+	return #self._items
+end
+
+function SearchIndex:Clear()
+	table.clear(self._items)
+	table.clear(self._byId)
+end
+
+function SearchIndex:Destroy()
+	self:Clear()
+end
+
+return SearchIndex
+end)
+
+-- ===== END Core.SearchIndex =====
+
+-- ===== BEGIN Core.TooltipManager (Core/TooltipManager.lua) =====
+
+__wyvern_define("Core.TooltipManager", function()
+-- Core/TooltipManager.lua — single shared tooltip overlay
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local TooltipManager = {
+	_label = nil,
+	_holder = nil,
+	_parent = nil,
+	_delay = 0.35,
+	_pending = nil,
+	_target = nil,
+}
+
+function TooltipManager.SetParent(parent)
+	TooltipManager._parent = parent
+	if TooltipManager._holder then
+		TooltipManager._holder.Parent = parent
+	end
+end
+
+function TooltipManager._ensure()
+	if TooltipManager._holder and TooltipManager._holder.Parent then
+		return
+	end
+	local parent = TooltipManager._parent
+	if not parent then
+		return
+	end
+	local holder = Instance.new("Frame")
+	holder.Name = "WyvernTooltip"
+	holder.BackgroundColor3 = Color3.fromRGB(22, 20, 30)
+	holder.BackgroundTransparency = 0.05
+	holder.BorderSizePixel = 0
+	holder.Visible = false
+	holder.ZIndex = 300
+	holder.Size = UDim2.fromOffset(0, 0)
+	holder.AutomaticSize = Enum.AutomaticSize.XY
+	holder.Parent = parent
+	Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 6)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(70, 65, 90)
+	stroke.Transparency = 0.35
+	stroke.Parent = holder
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
+	pad.PaddingLeft = UDim.new(0, 8)
+	pad.PaddingRight = UDim.new(0, 8)
+	pad.Parent = holder
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.AutomaticSize = Enum.AutomaticSize.XY
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 12
+	label.TextColor3 = Color3.fromRGB(230, 225, 240)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextWrapped = true
+	label.ZIndex = 301
+	label.Parent = holder
+	local constraint = Instance.new("UISizeConstraint")
+	constraint.MaxSize = Vector2.new(260, 120)
+	constraint.Parent = label
+	TooltipManager._holder = holder
+	TooltipManager._label = label
+end
+
+function TooltipManager.Show(text, anchor)
+	if type(text) ~= "string" or text == "" then
+		return
+	end
+	TooltipManager._ensure()
+	if not TooltipManager._holder then
+		return
+	end
+	if TooltipManager._pending then
+		task.cancel(TooltipManager._pending)
+		TooltipManager._pending = nil
+	end
+	TooltipManager._target = anchor
+	TooltipManager._pending = task.delay(TooltipManager._delay, function()
+		TooltipManager._pending = nil
+		if not TooltipManager._holder or TooltipManager._target ~= anchor then
+			return
+		end
+		TooltipManager._label.Text = text
+		TooltipManager._holder.Visible = true
+		TooltipManager._reposition(anchor)
+	end)
+end
+
+function TooltipManager._reposition(anchor)
+	local holder = TooltipManager._holder
+	if not holder or not anchor then
+		return
+	end
+	local ap = anchor.AbsolutePosition
+	local as = anchor.AbsoluteSize
+	local parent = holder.Parent
+	local oAbs = parent and parent.AbsolutePosition or Vector2.zero
+	local cam = workspace.CurrentCamera
+	local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+	task.defer(function()
+		if not holder.Parent then
+			return
+		end
+		local hs = holder.AbsoluteSize
+		local x = ap.X - oAbs.X
+		local y = ap.Y - oAbs.Y - hs.Y - 6
+		if y < 4 then
+			y = ap.Y - oAbs.Y + as.Y + 6
+		end
+		if x + hs.X > vp.X - 8 then
+			x = math.max(4, vp.X - hs.X - 8) - oAbs.X
+		end
+		if x < 4 then
+			x = 4
+		end
+		holder.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
+	end)
+end
+
+function TooltipManager.Hide(anchor)
+	if anchor and TooltipManager._target ~= anchor then
+		return
+	end
+	if TooltipManager._pending then
+		task.cancel(TooltipManager._pending)
+		TooltipManager._pending = nil
+	end
+	TooltipManager._target = nil
+	if TooltipManager._holder then
+		TooltipManager._holder.Visible = false
+	end
+end
+
+function TooltipManager.HideAll()
+	TooltipManager.Hide(nil)
+	TooltipManager._target = nil
+end
+
+function TooltipManager.Destroy()
+	TooltipManager.HideAll()
+	if TooltipManager._holder then
+		pcall(function()
+			TooltipManager._holder:Destroy()
+		end)
+		TooltipManager._holder = nil
+		TooltipManager._label = nil
+	end
+end
+
+function TooltipManager.Bind(gui, text)
+	if not gui or type(text) ~= "string" then
+		return function() end
+	end
+	local c1 = gui.MouseEnter:Connect(function()
+		TooltipManager.Show(text, gui)
+	end)
+	local c2 = gui.MouseLeave:Connect(function()
+		TooltipManager.Hide(gui)
+	end)
+	return function()
+		c1:Disconnect()
+		c2:Disconnect()
+		TooltipManager.Hide(gui)
+	end
+end
+
+return TooltipManager
+end)
+
+-- ===== END Core.TooltipManager =====
+
+-- ===== BEGIN Core.Registry (Core/Registry.lua) =====
+
+__wyvern_define("Core.Registry", function()
+-- Core/Registry.lua — component ID registry per Window
+local Registry = {}
+Registry.__index = Registry
+
+function Registry.new()
+	return setmetatable({ _map = {}, _count = 0 }, Registry)
+end
+
+function Registry:Register(id, component)
+	if type(id) ~= "string" or id == "" then
+		return false
+	end
+	if self._map[id] and self._map[id] ~= component then
+		warn("[Wyvern] duplicate component ID:", id)
+		return false
+	end
+	if not self._map[id] then
+		self._count += 1
+	end
+	self._map[id] = component
+	return true
+end
+
+function Registry:Unregister(id)
+	if self._map[id] then
+		self._map[id] = nil
+		self._count = math.max(0, self._count - 1)
+	end
+end
+
+function Registry:Get(id)
+	return self._map[id]
+end
+
+function Registry:Count()
+	return self._count
+end
+
+function Registry:Clear()
+	table.clear(self._map)
+	self._count = 0
+end
+
+function Registry:Destroy()
+	self:Clear()
+end
+
+return Registry
+end)
+
+-- ===== END Core.Registry =====
+
 -- ===== BEGIN Core.Modal (Core/Modal.lua) =====
 
 __wyvern_define("Core.Modal", function()
@@ -2357,6 +3194,74 @@ function PopupManager._ensureListener()
 end
 
 return PopupManager
+
+function PopupManager.OpenContextMenu(items, position, theme)
+	PopupManager.CloseAll()
+	local overlay = PopupManager.GetOverlay()
+	if not overlay or type(items) ~= "table" then
+		return
+	end
+	local menu = Instance.new("Frame")
+	menu.Name = "ContextMenu"
+	menu.BackgroundColor3 = theme and theme:Get("Surface") or Color3.fromRGB(30, 28, 40)
+	menu.BorderSizePixel = 0
+	menu.Size = UDim2.fromOffset(160, 0)
+	menu.AutomaticSize = Enum.AutomaticSize.Y
+	menu.ZIndex = 120
+	menu.ClipsDescendants = true
+	menu.Parent = overlay
+	Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 8)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = theme and theme:Get("Border") or Color3.fromRGB(60, 55, 75)
+	stroke.Parent = menu
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = menu
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 4)
+	pad.PaddingBottom = UDim.new(0, 4)
+	pad.Parent = menu
+	local x = position and position.X or 0
+	local y = position and position.Y or 0
+	local oAbs = overlay.AbsolutePosition
+	menu.Position = UDim2.fromOffset(x - oAbs.X, y - oAbs.Y)
+	for i, item in ipairs(items) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, 0, 0, 28)
+		btn.BackgroundTransparency = 1
+		btn.Text = "  " .. tostring(item.Title or item.Name or "Item")
+		btn.TextColor3 = item.Destructive and Color3.fromRGB(255, 100, 100) or (theme and theme:Get("Text") or Color3.new(1,1,1))
+		btn.Font = Enum.Font.Gotham
+		btn.TextSize = 12
+		btn.TextXAlignment = Enum.TextXAlignment.Left
+		btn.ZIndex = 121
+		btn.LayoutOrder = i
+		btn.Parent = menu
+		btn.MouseButton1Click:Connect(function()
+			PopupManager.CloseAll()
+			if menu then menu:Destroy() end
+			if type(item.Callback) == "function" then
+				task.spawn(item.Callback)
+			end
+		end)
+	end
+	local proxy = {
+		_popup = menu,
+		_open = true,
+		Close = function(self)
+			self._open = false
+			if menu then pcall(function() menu:Destroy() end) end
+			PopupManager.RegisterClose(self)
+		end,
+		IsPointInside = function(_, pos)
+			if not menu then return false end
+			local ap, as = menu.AbsolutePosition, menu.AbsoluteSize
+			return pos.X >= ap.X and pos.X <= ap.X + as.X and pos.Y >= ap.Y and pos.Y <= ap.Y + as.Y
+		end,
+	}
+	PopupManager.RegisterOpen(proxy)
+	return proxy
+end
 end)
 
 -- ===== END Core.PopupManager =====
@@ -4837,6 +5742,15 @@ end
 function ProgressBar:SetProgress(v)
 	self:Set(v)
 end
+function ProgressBar:GetProgress()
+	return self._value
+end
+function ProgressBar:GetValue()
+	return self:Get()
+end
+function ProgressBar:SetValue(v)
+	self:Set(v)
+end
 
 function ProgressBar:ApplyTheme(theme)
 	self._theme = theme
@@ -4871,6 +5785,10 @@ local ColorPicker = __wyvern_require("Components.ColorPicker")
 local Divider = __wyvern_require("Components.Divider")
 local Feature = __wyvern_require("Components.Feature")
 local ProgressBar = __wyvern_require("Components.ProgressBar")
+local TableComp = __wyvern_require("Components.Table")
+local RadioGroup = __wyvern_require("Components.RadioGroup")
+local Switch = __wyvern_require("Components.Switch")
+local TooltipManager = __wyvern_require("Core.TooltipManager")
 local Flags = __wyvern_require("Core.Flags")
 
 local Section = {}
@@ -4884,6 +5802,8 @@ function Section.new(config, parent, theme, search, inputManager)
 		_input = inputManager,
 		_name = config.Name or "Section",
 		_components = {},
+		_registry = config.Registry,
+		_searchIndex = config.SearchIndex,
 	}, Section)
 
 	local card = Instance.new("Frame")
@@ -4934,6 +5854,43 @@ function Section.new(config, parent, theme, search, inputManager)
 
 	self._maid:Give(card)
 	return self
+end
+
+
+function Section:_finalize(comp, config)
+	config = config or {}
+	if not comp then return end
+	table.insert(self._components, comp)
+	if config.Tooltip and comp._instance then
+		local unbind = TooltipManager.Bind(comp._instance, config.Tooltip)
+		if comp._maid and unbind then
+			comp._maid:Give(unbind)
+		end
+	end
+	if config.ID and self._registry then
+		self._registry:Register(config.ID, comp)
+		if comp._maid then
+			comp._maid:Give(function()
+				self._registry:Unregister(config.ID)
+			end)
+		end
+	end
+	if self._searchIndex and config.ID then
+		self._searchIndex:Register({
+			Id = config.ID,
+			Title = config.Name or config.Title or config.ID,
+			Description = config.Description or "",
+			Category = self._name,
+			Keywords = config.Keywords or {},
+			Target = comp,
+		})
+		if comp._maid then
+			comp._maid:Give(function()
+				self._searchIndex:Unregister(config.ID)
+			end)
+		end
+	end
+	return comp
 end
 
 function Section:_addComponent(comp)
@@ -5080,6 +6037,60 @@ function Section:AddProgressBar(config)
 	return self:CreateProgressBar(config)
 end
 
+
+function Section:CreateTable(config)
+	local c = TableComp.new(config or {}, self._instance, self._theme)
+	return self:_finalize(c, config)
+end
+function Section:AddTable(c) return self:CreateTable(c) end
+
+function Section:CreateRadioGroup(config)
+	local c = RadioGroup.new(config or {}, self._instance, self._theme)
+	return self:_finalize(c, config)
+end
+function Section:AddRadioGroup(c) return self:CreateRadioGroup(c) end
+
+function Section:CreateSwitch(config)
+	local c = Switch.new(config or {}, self._instance, self._theme, self._search, self._input)
+	return self:_finalize(c, config)
+end
+function Section:AddSwitch(c) return self:CreateSwitch(c) end
+
+function Section:CreateRow(config)
+	local c = Layout.Row(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddRow(c) return self:CreateRow(c) end
+
+function Section:CreateColumn(config)
+	local c = Layout.Column(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddColumn(c) return self:CreateColumn(c) end
+
+function Section:CreateCard(config)
+	local c = Layout.Card(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddCard(c) return self:CreateCard(c) end
+
+function Section:CreateGroup(config)
+	local c = Layout.Group(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddGroup(c) return self:CreateGroup(c) end
+
+function Section:CreateContainer(config)
+	local c = Layout.Container(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddContainer(c) return self:CreateContainer(c) end
+
 function Section:CreateFeature(config)
 	config = config or {}
 	local feature = Feature.new(config, self._instance, self._theme, self._search, self._input)
@@ -5224,6 +6235,11 @@ function Tab:CreateSection(config)
 		target = self._left
 	end
 
+	config = config or {}
+	if self._window then
+		config.Registry = self._window._registry
+		config.SearchIndex = self._window._searchIndex
+	end
 	local section = Section.new(config, target, self._theme, self._search, self._input)
 	section._instance.LayoutOrder = #self._sections + 1
 	table.insert(self._sections, section)
@@ -5288,6 +6304,9 @@ local Constants = __wyvern_require("Core.Constants")
 local Icons = __wyvern_require("Icons.Registry")
 local Notification = __wyvern_require("Core.Notification")
 local PopupManager = __wyvern_require("Core.PopupManager")
+local Registry = __wyvern_require("Core.Registry")
+local SearchIndex = __wyvern_require("Core.SearchIndex")
+local TooltipManager = __wyvern_require("Core.TooltipManager")
 
 local Window = {}
 Window.__index = Window
@@ -5366,6 +6385,8 @@ function Window.new(config, theme, scale)
 	end
 
 	local self = setmetatable({
+		_registry = Registry.new(),
+		_searchIndex = SearchIndex.new(),
 		_maid = Maid.new(),
 		_theme = theme,
 		_scale = scale or 1,
@@ -5427,6 +6448,7 @@ function Window.new(config, theme, scale)
 	overlay.Active = false
 	overlay.Parent = screenGui
 	self._overlay = overlay
+	TooltipManager.SetParent(overlay)
 	PopupManager.SetOverlay(overlay)
 
 	-- Main window: offset-only position from the start
@@ -6488,6 +7510,14 @@ function Window:Center()
 		math.floor((vp.Y - size.Y) / 2)
 	)
 end
+
+function Window:GetComponent(id)
+	return self._registry and self._registry:Get(id) or nil
+end
+
+function Window:Search(query)
+	return self._searchIndex and self._searchIndex:Search(query) or {}
+end
 end)
 
 -- ===== END Core.Window =====
@@ -6517,6 +7547,7 @@ local SakuraTheme = __wyvern_require("Themes.Sakura")
 local Flags = __wyvern_require("Core.Flags")
 local Notification = __wyvern_require("Core.Notification")
 local Modal = __wyvern_require("Core.Modal")
+local ThemeRegistry = __wyvern_require("Core.ThemeRegistry")
 
 local Wyvern = {
 	_version = "1.0.0",
@@ -6614,6 +7645,54 @@ end
 function Wyvern:Confirm(config)
 	config = config or {}
 	return Modal.Confirm(config, self._theme, nil)
+end
+
+function Wyvern:RegisterTheme(name, themeTable)
+	return ThemeRegistry.Register(name, themeTable)
+end
+
+function Wyvern:SetThemeByName(name)
+	local ok = ThemeRegistry.Set(name)
+	if ok and ThemeRegistry.GetActive() then
+		self._theme = ThemeRegistry.GetActive()
+	end
+	return ok
+end
+
+function Wyvern:GetThemeNames()
+	return ThemeRegistry.GetNames()
+end
+
+function Wyvern:SetDebug(enabled)
+	self._debug = enabled and true or false
+end
+
+function Wyvern:IsDebug()
+	return self._debug == true
+end
+
+function Wyvern:DebugDump()
+	local lines = {
+		"Wyvern Debug",
+		"Version: " .. tostring(self.Version),
+		"Debug: " .. tostring(self._debug),
+		"Themes: " .. table.concat(ThemeRegistry.GetNames(), ", "),
+	}
+	print(table.concat(lines, "\n"))
+	return lines
+end
+
+function Wyvern:RegisterSearchItem(entry)
+	-- global index optional; prefer window:Search
+	self._globalSearch = self._globalSearch or __wyvern_require("Core.SearchIndex").new()
+	return self._globalSearch:Register(entry)
+end
+
+function Wyvern:Search(query)
+	if self._globalSearch then
+		return self._globalSearch:Search(query)
+	end
+	return {}
 end
 end)
 

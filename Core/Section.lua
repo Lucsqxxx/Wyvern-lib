@@ -16,6 +16,10 @@ local ColorPicker = require(script.Parent.Parent.Components.ColorPicker)
 local Divider = require(script.Parent.Parent.Components.Divider)
 local Feature = require(script.Parent.Parent.Components.Feature)
 local ProgressBar = require(script.Parent.Parent.Components.ProgressBar)
+local TableComp = require(script.Parent.Parent.Components.Table)
+local RadioGroup = require(script.Parent.Parent.Components.RadioGroup)
+local Switch = require(script.Parent.Parent.Components.Switch)
+local TooltipManager = require(script.Parent.TooltipManager)
 local Flags = require(script.Parent.Flags)
 
 local Section = {}
@@ -29,6 +33,8 @@ function Section.new(config, parent, theme, search, inputManager)
 		_input = inputManager,
 		_name = config.Name or "Section",
 		_components = {},
+		_registry = config.Registry,
+		_searchIndex = config.SearchIndex,
 	}, Section)
 
 	local card = Instance.new("Frame")
@@ -79,6 +85,43 @@ function Section.new(config, parent, theme, search, inputManager)
 
 	self._maid:Give(card)
 	return self
+end
+
+
+function Section:_finalize(comp, config)
+	config = config or {}
+	if not comp then return end
+	table.insert(self._components, comp)
+	if config.Tooltip and comp._instance then
+		local unbind = TooltipManager.Bind(comp._instance, config.Tooltip)
+		if comp._maid and unbind then
+			comp._maid:Give(unbind)
+		end
+	end
+	if config.ID and self._registry then
+		self._registry:Register(config.ID, comp)
+		if comp._maid then
+			comp._maid:Give(function()
+				self._registry:Unregister(config.ID)
+			end)
+		end
+	end
+	if self._searchIndex and config.ID then
+		self._searchIndex:Register({
+			Id = config.ID,
+			Title = config.Name or config.Title or config.ID,
+			Description = config.Description or "",
+			Category = self._name,
+			Keywords = config.Keywords or {},
+			Target = comp,
+		})
+		if comp._maid then
+			comp._maid:Give(function()
+				self._searchIndex:Unregister(config.ID)
+			end)
+		end
+	end
+	return comp
 end
 
 function Section:_addComponent(comp)
@@ -224,6 +267,60 @@ end
 function Section:AddProgressBar(config)
 	return self:CreateProgressBar(config)
 end
+
+
+function Section:CreateTable(config)
+	local c = TableComp.new(config or {}, self._instance, self._theme)
+	return self:_finalize(c, config)
+end
+function Section:AddTable(c) return self:CreateTable(c) end
+
+function Section:CreateRadioGroup(config)
+	local c = RadioGroup.new(config or {}, self._instance, self._theme)
+	return self:_finalize(c, config)
+end
+function Section:AddRadioGroup(c) return self:CreateRadioGroup(c) end
+
+function Section:CreateSwitch(config)
+	local c = Switch.new(config or {}, self._instance, self._theme, self._search, self._input)
+	return self:_finalize(c, config)
+end
+function Section:AddSwitch(c) return self:CreateSwitch(c) end
+
+function Section:CreateRow(config)
+	local c = Layout.Row(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddRow(c) return self:CreateRow(c) end
+
+function Section:CreateColumn(config)
+	local c = Layout.Column(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddColumn(c) return self:CreateColumn(c) end
+
+function Section:CreateCard(config)
+	local c = Layout.Card(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddCard(c) return self:CreateCard(c) end
+
+function Section:CreateGroup(config)
+	local c = Layout.Group(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddGroup(c) return self:CreateGroup(c) end
+
+function Section:CreateContainer(config)
+	local c = Layout.Container(config or {}, self._instance, self._theme)
+	table.insert(self._components, c)
+	return c
+end
+function Section:AddContainer(c) return self:CreateContainer(c) end
 
 function Section:CreateFeature(config)
 	config = config or {}

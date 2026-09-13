@@ -97,6 +97,11 @@ function Tab:CreateSection(config)
 		target = self._left
 	end
 
+	config = config or {}
+	if self._window then
+		config.Registry = self._window._registry
+		config.SearchIndex = self._window._searchIndex
+	end
 	local section = Section.new(config, target, self._theme, self._search, self._input)
 	section._instance.LayoutOrder = #self._sections + 1
 	table.insert(self._sections, section)

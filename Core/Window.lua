@@ -14,6 +14,9 @@ local Constants = require(script.Parent.Constants)
 local Icons = require(script.Parent.Parent.Icons.Registry)
 local Notification = require(script.Parent.Notification)
 local PopupManager = require(script.Parent.PopupManager)
+local Registry = require(script.Parent.Registry)
+local SearchIndex = require(script.Parent.SearchIndex)
+local TooltipManager = require(script.Parent.TooltipManager)
 
 local Window = {}
 Window.__index = Window
@@ -92,6 +95,8 @@ function Window.new(config, theme, scale)
 	end
 
 	local self = setmetatable({
+		_registry = Registry.new(),
+		_searchIndex = SearchIndex.new(),
 		_maid = Maid.new(),
 		_theme = theme,
 		_scale = scale or 1,
@@ -153,6 +158,7 @@ function Window.new(config, theme, scale)
 	overlay.Active = false
 	overlay.Parent = screenGui
 	self._overlay = overlay
+	TooltipManager.SetParent(overlay)
 	PopupManager.SetOverlay(overlay)
 
 	-- Main window: offset-only position from the start
@@ -1213,4 +1219,12 @@ function Window:Center()
 		math.floor((vp.X - size.X) / 2),
 		math.floor((vp.Y - size.Y) / 2)
 	)
+end
+
+function Window:GetComponent(id)
+	return self._registry and self._registry:Get(id) or nil
+end
+
+function Window:Search(query)
+	return self._searchIndex and self._searchIndex:Search(query) or {}
 end

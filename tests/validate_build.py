@@ -157,6 +157,18 @@ if "✓" in toggle or "✔" in toggle:
 else:
     ok("Toggle no unicode check")
 
+# Phase 2 API presence in dist
+phase2 = [
+    "AddRow", "AddTable", "AddRadioGroup", "AddSwitch",
+    "TooltipManager", "SearchIndex", "RegisterTheme", "DebugDump",
+    "OpenContextMenu", "GetComponent", "CreateProgressBar", "Confirm",
+]
+for token in phase2:
+    if token in src:
+        ok(f"phase2 {token}")
+    else:
+        fail(f"phase2 missing {token}")
+
 print()
 print(f"Results: {len(passes)} PASS, {len(errors)} FAIL")
 sys.exit(1 if errors else 0)

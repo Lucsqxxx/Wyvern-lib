@@ -374,3 +374,15 @@ library:GetFlag / SetFlag / ResetFlags
 `Create*` methods remain supported. There is **no** Azure `create_module` API.
 
 Showcase: `examples/Showcase.lua`
+
+
+## Phase 2 APIs
+
+- Layout: AddRow, AddColumn, AddCard, AddGroup, AddContainer
+- Data: AddTable, AddRadioGroup, AddSwitch, AddProgressBar
+- window:GetComponent(id) with ID on controls
+- window:Search(query)
+- library:RegisterTheme / SetThemeByName / GetThemeNames
+- library:Confirm, SetDebug / DebugDump
+- Tooltip = "..." on controls
+- PopupManager.OpenContextMenu

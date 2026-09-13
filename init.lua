@@ -20,6 +20,7 @@ local SakuraTheme = require(script.Themes.Sakura)
 local Flags = require(script.Core.Flags)
 local Notification = require(script.Core.Notification)
 local Modal = require(script.Core.Modal)
+local ThemeRegistry = require(script.Core.ThemeRegistry)
 
 local Wyvern = {
 	_version = "1.0.0",
@@ -117,4 +118,52 @@ end
 function Wyvern:Confirm(config)
 	config = config or {}
 	return Modal.Confirm(config, self._theme, nil)
+end
+
+function Wyvern:RegisterTheme(name, themeTable)
+	return ThemeRegistry.Register(name, themeTable)
+end
+
+function Wyvern:SetThemeByName(name)
+	local ok = ThemeRegistry.Set(name)
+	if ok and ThemeRegistry.GetActive() then
+		self._theme = ThemeRegistry.GetActive()
+	end
+	return ok
+end
+
+function Wyvern:GetThemeNames()
+	return ThemeRegistry.GetNames()
+end
+
+function Wyvern:SetDebug(enabled)
+	self._debug = enabled and true or false
+end
+
+function Wyvern:IsDebug()
+	return self._debug == true
+end
+
+function Wyvern:DebugDump()
+	local lines = {
+		"Wyvern Debug",
+		"Version: " .. tostring(self.Version),
+		"Debug: " .. tostring(self._debug),
+		"Themes: " .. table.concat(ThemeRegistry.GetNames(), ", "),
+	}
+	print(table.concat(lines, "\n"))
+	return lines
+end
+
+function Wyvern:RegisterSearchItem(entry)
+	-- global index optional; prefer window:Search
+	self._globalSearch = self._globalSearch or require(script.Core.SearchIndex).new()
+	return self._globalSearch:Register(entry)
+end
+
+function Wyvern:Search(query)
+	if self._globalSearch then
+		return self._globalSearch:Search(query)
+	end
+	return {}
 end

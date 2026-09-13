@@ -85,6 +85,15 @@ end
 function ProgressBar:SetProgress(v)
 	self:Set(v)
 end
+function ProgressBar:GetProgress()
+	return self._value
+end
+function ProgressBar:GetValue()
+	return self:Get()
+end
+function ProgressBar:SetValue(v)
+	self:Set(v)
+end
 
 function ProgressBar:ApplyTheme(theme)
 	self._theme = theme
