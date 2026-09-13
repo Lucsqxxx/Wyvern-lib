@@ -15,7 +15,7 @@ function PopupManager.SetOverlay(overlay)
 end
 
 function PopupManager.GetOverlay()
-	return PopupManager._overlay
+	._overlay
 end
 
 function PopupManager.RegisterOpen(component)
@@ -45,7 +45,7 @@ function PopupManager.CloseAll()
 end
 
 function PopupManager.GetOpen()
-	return PopupManager._open
+	._open
 end
 
 function PopupManager._ensureListener()
@@ -93,7 +93,7 @@ function PopupManager._ensureListener()
 	end)
 end
 
-return PopupManager
+
 
 function PopupManager.OpenContextMenu(items, position, theme)
 	PopupManager.CloseAll()
@@ -162,3 +162,5 @@ function PopupManager.OpenContextMenu(items, position, theme)
 	PopupManager.RegisterOpen(proxy)
 	return proxy
 end
+
+return PopupManager
