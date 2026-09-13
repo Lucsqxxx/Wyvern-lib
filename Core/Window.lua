@@ -567,12 +567,9 @@ function Window.new(config, theme, scale)
 	local cam = workspace.CurrentCamera
 	if cam then
 		self._maid:Give(cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-			if self._destroyed or not self._main then return end
-			local pos = self._main.Position
-			local h = self._minimized and (Constants.HeaderHeight + 10) or Constants.WindowHeight
-			local x, y = clampPosition(pos.X.Offset, pos.Y.Offset, Constants.WindowWidth, h, self._scale)
-			self._main.Position = UDim2.fromOffset(x, y)
-			if not self._minimized then
+			if self._destroyed then return end
+			self:ApplyResponsiveLayout(true)
+			if not self._minimized and self._main then
 				self._savedPosition = self._main.Position
 			end
 			self:_syncSecondary()
@@ -865,17 +862,11 @@ function Window:OpenSettings()
 	windowSec:CreateButton({
 		Name = "Center Window",
 		Callback = function()
+			self:Center()
 			if self._main then
-				local cam = workspace.CurrentCamera
-				local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
-				local scale = self._scale or 1
-				local w = Constants.WindowWidth * scale
-				local h = Constants.WindowHeight * scale
-				local pos = UDim2.fromOffset(math.max(0, (vp.X - w) / 2), math.max(0, (vp.Y - h) / 2))
-				self._main.Position = pos
-				self._savedPosition = pos
-				self:_syncSecondary()
+				self._savedPosition = self._main.Position
 			end
+			self:_syncSecondary()
 		end,
 	})
 
@@ -1019,7 +1010,7 @@ function Window:Minimize()
 	if self._bottomNav then self._bottomNav.Visible = false end
 
 	self:_cancelMinTween()
-	local target = UDim2.fromOffset(Constants.WindowWidth, Constants.HeaderHeight + 10)
+	local target = UDim2.fromOffset(self._logicalWidth or Constants.WindowWidth, Constants.HeaderHeight + 10)
 	local dur = self:_animDuration(0.18)
 	if dur <= 0 or not self._main then
 		if self._main then self._main.Size = target end
@@ -1053,7 +1044,7 @@ function Window:Restore()
 	self._minimized = false
 
 	self:_cancelMinTween()
-	local target = UDim2.fromOffset(Constants.WindowWidth, Constants.WindowHeight)
+	local target = UDim2.fromOffset(self._logicalWidth or Constants.WindowWidth, self._logicalHeight or Constants.WindowHeight)
 	local dur = self:_animDuration(0.18)
 	if self._main and self._savedPosition then
 		self._main.Position = self._savedPosition

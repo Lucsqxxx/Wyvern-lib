@@ -80,7 +80,7 @@ function RadioGroup.new(config, parent, theme)
 		label.Parent = row
 
 		row.MouseButton1Click:Connect(function()
-			if not self:GetEnabled() then return end
+			if not self:IsEnabled() then return end
 			self:Set(opt)
 		end)
 		self._buttons[opt] = inner

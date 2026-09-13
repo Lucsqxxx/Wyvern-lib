@@ -96,6 +96,10 @@ function Component:SetEnabled(enabled)
 	self._enabled = enabled and true or false
 end
 
+function Component:GetEnabled()
+	return self:IsEnabled()
+end
+
 function Component:IsEnabled()
 	return self._enabled
 end

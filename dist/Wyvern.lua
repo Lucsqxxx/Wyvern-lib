@@ -1588,6 +1588,10 @@ function Component:SetEnabled(enabled)
 	self._enabled = enabled and true or false
 end
 
+function Component:GetEnabled()
+	return self:IsEnabled()
+end
+
 function Component:IsEnabled()
 	return self._enabled
 end
@@ -2201,7 +2205,7 @@ function RadioGroup.new(config, parent, theme)
 		label.Parent = row
 
 		row.MouseButton1Click:Connect(function()
-			if not self:GetEnabled() then return end
+			if not self:IsEnabled() then return end
 			self:Set(opt)
 		end)
 		self._buttons[opt] = inner
@@ -3588,9 +3592,17 @@ function Button:ApplyTheme(theme)
 	theme = theme or self._theme
 	if not theme or self._destroyed then return end
 	self._theme = theme
-	if self._button then
-		self._button.BackgroundColor3 = theme:Get("Button")
-		self._button.TextColor3 = theme:Get("Text")
+	local btn = self._instance
+	if btn then
+		local bg = theme:Get("Button") or theme:Get("Surface") or theme:Get("Accent")
+		if bg then
+			btn.BackgroundColor3 = bg
+		end
+		if self._label then
+			self._label.TextColor3 = theme:Get("Text") or self._label.TextColor3
+		elseif btn:IsA("TextButton") then
+			btn.TextColor3 = theme:Get("Text") or btn.TextColor3
+		end
 	end
 end
 
@@ -6454,6 +6466,7 @@ function Tab.new(config, window, theme, search, inputManager)
 end
 
 function Tab:CreateSection(config)
+	config = config or {}
 	-- Alternate columns for visual balance if not specified
 	local target = self._left
 	if config.Column == "Right" or (#self._sections % 2 == 1 and config.Column ~= "Left") then
@@ -6462,8 +6475,6 @@ function Tab:CreateSection(config)
 	if config.Column == "Left" then
 		target = self._left
 	end
-
-	config = config or {}
 	if self._window then
 		config.Registry = self._window._registry
 		config.SearchIndex = self._window._searchIndex
@@ -6507,7 +6518,6 @@ end
 function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
-return Tab
 
 function Tab:ApplyResponsiveLayout(mode)
 	mode = mode or (self._window and self._window.GetResponsiveMode and self._window:GetResponsiveMode()) or "Desktop"
@@ -6541,6 +6551,8 @@ function Tab:ApplyResponsiveLayout(mode)
 		self._right.Position = UDim2.new(0.5, 6, 0, 0)
 	end
 end
+
+return Tab
 end)
 
 -- ===== END Core.Tab =====
@@ -7117,12 +7129,9 @@ function Window.new(config, theme, scale)
 	local cam = workspace.CurrentCamera
 	if cam then
 		self._maid:Give(cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-			if self._destroyed or not self._main then return end
-			local pos = self._main.Position
-			local h = self._minimized and (Constants.HeaderHeight + 10) or Constants.WindowHeight
-			local x, y = clampPosition(pos.X.Offset, pos.Y.Offset, Constants.WindowWidth, h, self._scale)
-			self._main.Position = UDim2.fromOffset(x, y)
-			if not self._minimized then
+			if self._destroyed then return end
+			self:ApplyResponsiveLayout(true)
+			if not self._minimized and self._main then
 				self._savedPosition = self._main.Position
 			end
 			self:_syncSecondary()
@@ -7415,17 +7424,11 @@ function Window:OpenSettings()
 	windowSec:CreateButton({
 		Name = "Center Window",
 		Callback = function()
+			self:Center()
 			if self._main then
-				local cam = workspace.CurrentCamera
-				local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
-				local scale = self._scale or 1
-				local w = Constants.WindowWidth * scale
-				local h = Constants.WindowHeight * scale
-				local pos = UDim2.fromOffset(math.max(0, (vp.X - w) / 2), math.max(0, (vp.Y - h) / 2))
-				self._main.Position = pos
-				self._savedPosition = pos
-				self:_syncSecondary()
+				self._savedPosition = self._main.Position
 			end
+			self:_syncSecondary()
 		end,
 	})
 
@@ -7569,7 +7572,7 @@ function Window:Minimize()
 	if self._bottomNav then self._bottomNav.Visible = false end
 
 	self:_cancelMinTween()
-	local target = UDim2.fromOffset(Constants.WindowWidth, Constants.HeaderHeight + 10)
+	local target = UDim2.fromOffset(self._logicalWidth or Constants.WindowWidth, Constants.HeaderHeight + 10)
 	local dur = self:_animDuration(0.18)
 	if dur <= 0 or not self._main then
 		if self._main then self._main.Size = target end
@@ -7603,7 +7606,7 @@ function Window:Restore()
 	self._minimized = false
 
 	self:_cancelMinTween()
-	local target = UDim2.fromOffset(Constants.WindowWidth, Constants.WindowHeight)
+	local target = UDim2.fromOffset(self._logicalWidth or Constants.WindowWidth, self._logicalHeight or Constants.WindowHeight)
 	local dur = self:_animDuration(0.18)
 	if self._main and self._savedPosition then
 		self._main.Position = self._savedPosition
@@ -7874,6 +7877,7 @@ local Wyvern = {
 	_version = "1.1.0",
 	_theme = nil,
 	_scale = 1,
+	_scaleLocked = false,
 	_debug = false,
 	Icons = Icons,
 	Constants = Constants,
@@ -7897,7 +7901,11 @@ function Wyvern:CreateWindow(config)
 		self._theme = Theme.new(SakuraTheme)
 		ThemeRegistry.BindActive(self._theme)
 	end
-	return Window.new(config, self._theme, self._scale)
+	-- Only lock scale when user explicitly set library scale or config.Scale
+	if self._scaleLocked and config.Scale == nil then
+		config.Scale = self._scale
+	end
+	return Window.new(config, self._theme)
 end
 
 function Wyvern:SetTheme(themeTable)
@@ -7919,6 +7927,7 @@ end
 
 function Wyvern:SetScale(scale)
 	self._scale = tonumber(scale) or 1
+	self._scaleLocked = true
 end
 
 function Wyvern:GetScale()

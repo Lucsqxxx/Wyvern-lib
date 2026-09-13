@@ -218,6 +218,41 @@ for method in ["IsVisible", "IsMinimized"]:
     else:
         fail(f"Window:{method} count={c}")
 
+
+# Nil-call / module-order regression
+if "if not self:IsEnabled()" in src and "function Component:IsEnabled" in src:
+    ok("RadioGroup/Component IsEnabled")
+else:
+    # Radio may use GetEnabled alias
+    if "function Component:GetEnabled" in src:
+        ok("Component GetEnabled alias")
+    else:
+        fail("enabled-state API missing")
+if "self:GetEnabled()" in src and "function Component:GetEnabled" not in src:
+    fail("GetEnabled call without definition")
+else:
+    ok("no orphan GetEnabled calls")
+# Tab ApplyResponsive before return in define
+ta = src.find('__wyvern_define("Core.Tab"')
+tb = src.find("-- ===== END Core.Tab", ta) if ta>=0 else -1
+if ta>=0:
+    body = src[ta:tb if tb>0 else ta+5000]
+    if body.find("ApplyResponsiveLayout") < body.rfind("return Tab"):
+        ok("Tab ApplyResponsiveLayout before return")
+    else:
+        fail("Tab premature return")
+if "ApplyResponsiveLayout(true)" in src:
+    ok("viewport uses ApplyResponsiveLayout")
+else:
+    fail("viewport not wired to ApplyResponsiveLayout")
+if "_scaleLocked" in src and "Window.new(config, self._theme, self._scale)" not in src:
+    ok("scale lock does not force default 1")
+else:
+    if "_scaleLocked" in src:
+        ok("scale lock present")
+    else:
+        fail("scale lock missing")
+
 print()
 print(f"Results: {len(passes)} PASS, {len(errors)} FAIL")
 sys.exit(1 if errors else 0)

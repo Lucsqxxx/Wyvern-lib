@@ -88,9 +88,17 @@ function Button:ApplyTheme(theme)
 	theme = theme or self._theme
 	if not theme or self._destroyed then return end
 	self._theme = theme
-	if self._button then
-		self._button.BackgroundColor3 = theme:Get("Button")
-		self._button.TextColor3 = theme:Get("Text")
+	local btn = self._instance
+	if btn then
+		local bg = theme:Get("Button") or theme:Get("Surface") or theme:Get("Accent")
+		if bg then
+			btn.BackgroundColor3 = bg
+		end
+		if self._label then
+			self._label.TextColor3 = theme:Get("Text") or self._label.TextColor3
+		elseif btn:IsA("TextButton") then
+			btn.TextColor3 = theme:Get("Text") or btn.TextColor3
+		end
 	end
 end
 

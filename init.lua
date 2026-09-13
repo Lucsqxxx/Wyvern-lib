@@ -19,6 +19,7 @@ local Wyvern = {
 	_version = "1.1.0",
 	_theme = nil,
 	_scale = 1,
+	_scaleLocked = false,
 	_debug = false,
 	Icons = Icons,
 	Constants = Constants,
@@ -42,7 +43,11 @@ function Wyvern:CreateWindow(config)
 		self._theme = Theme.new(SakuraTheme)
 		ThemeRegistry.BindActive(self._theme)
 	end
-	return Window.new(config, self._theme, self._scale)
+	-- Only lock scale when user explicitly set library scale or config.Scale
+	if self._scaleLocked and config.Scale == nil then
+		config.Scale = self._scale
+	end
+	return Window.new(config, self._theme)
 end
 
 function Wyvern:SetTheme(themeTable)
@@ -64,6 +69,7 @@ end
 
 function Wyvern:SetScale(scale)
 	self._scale = tonumber(scale) or 1
+	self._scaleLocked = true
 end
 
 function Wyvern:GetScale()

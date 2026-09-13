@@ -88,6 +88,7 @@ function Tab.new(config, window, theme, search, inputManager)
 end
 
 function Tab:CreateSection(config)
+	config = config or {}
 	-- Alternate columns for visual balance if not specified
 	local target = self._left
 	if config.Column == "Right" or (#self._sections % 2 == 1 and config.Column ~= "Left") then
@@ -96,8 +97,6 @@ function Tab:CreateSection(config)
 	if config.Column == "Left" then
 		target = self._left
 	end
-
-	config = config or {}
 	if self._window then
 		config.Registry = self._window._registry
 		config.SearchIndex = self._window._searchIndex
@@ -141,7 +140,6 @@ end
 function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
-return Tab
 
 function Tab:ApplyResponsiveLayout(mode)
 	mode = mode or (self._window and self._window.GetResponsiveMode and self._window:GetResponsiveMode()) or "Desktop"
@@ -175,3 +173,5 @@ function Tab:ApplyResponsiveLayout(mode)
 		self._right.Position = UDim2.new(0.5, 6, 0, 0)
 	end
 end
+
+return Tab
