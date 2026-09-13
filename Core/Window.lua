@@ -230,6 +230,8 @@ function Window.new(config, theme, scale)
 	titleCluster.Position = UDim2.fromOffset(36, 0)
 	titleCluster.Size = UDim2.new(1, -120, 1, 0)
 	titleCluster.ClipsDescendants = true
+	titleCluster.Size = UDim2.new(1, -100, 1, 0)
+	titleCluster.ClipsDescendants = true
 	titleCluster.Parent = header
 
 	local titleLayout = Instance.new("UIListLayout")
@@ -243,8 +245,8 @@ function Window.new(config, theme, scale)
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
 	title.BackgroundTransparency = 1
-	title.AutomaticSize = Enum.AutomaticSize.X
-	title.Size = UDim2.fromOffset(0, Constants.HeaderHeight)
+	title.AutomaticSize = Enum.AutomaticSize.None
+	title.Size = UDim2.new(1, -100, 0, Constants.HeaderHeight)
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = Constants.TitleSize
 	title.TextColor3 = theme:Get("Text")
@@ -277,6 +279,7 @@ function Window.new(config, theme, scale)
 	closeBtn.Text = ""
 	closeBtn.ZIndex = 5
 	closeBtn.Parent = header
+	self._closeBtn = closeBtn
 	Icons.Create(closeBtn, "Close", { Size = 12, Theme = theme, Color = theme:Get("TextSecondary"), ZIndex = 6 })
 
 	local minBtn = Instance.new("TextButton")
@@ -287,6 +290,7 @@ function Window.new(config, theme, scale)
 	minBtn.Text = ""
 	minBtn.ZIndex = 5
 	minBtn.Parent = header
+	self._minBtn = minBtn
 	Icons.Create(minBtn, "Minimize", { Size = 12, Theme = theme, Color = theme:Get("TextSecondary"), ZIndex = 6 })
 
 	self._maid:Give(closeBtn.MouseButton1Click:Connect(function()
@@ -1249,14 +1253,33 @@ function Window:ApplyResponsiveLayout(force)
 	local x, y = clampPosition(pos.X.Offset, pos.Y.Offset, lw, lh, self._scale)
 	self._main.Position = UDim2.fromOffset(x, y)
 	-- Bottom nav: wider on mobile for touch
+	local navSize = Responsive.GetNavIconSize(mode)
 	if self._bottomNav then
 		if mode == "Mobile" then
-			self._bottomNav.Size = UDim2.fromOffset(math.min(280, lw - 24), 40)
-			self._bottomNav.Position = UDim2.new(0.5, -math.min(140, (lw - 24) / 2), 1, -52)
+			local navW = math.min(math.max(260, #self._navIcons * (navSize + 8) + 24), lw - 16)
+			self._bottomNav.Size = UDim2.fromOffset(navW, navSize + 12)
+			self._bottomNav.Position = UDim2.new(0.5, -navW / 2, 1, -(navSize + 20))
 		else
 			self._bottomNav.Size = UDim2.fromOffset(220, 36)
 			self._bottomNav.Position = UDim2.new(0.5, -110, 1, -48)
 		end
+	end
+	local touch = Responsive.GetTouchTarget(mode)
+	for _, btn in ipairs(self._navIcons or {}) do
+		btn.Size = UDim2.fromOffset(navSize, navSize)
+	end
+	for _, btn in ipairs(self._secIcons or {}) do
+		btn.Size = UDim2.fromOffset(navSize, navSize)
+	end
+	if self._closeBtn then
+		local s = mode == "Mobile" and math.max(32, touch - 8) or 28
+		self._closeBtn.Size = UDim2.fromOffset(s, s)
+		self._closeBtn.Position = UDim2.new(1, -(s + 6), 0.5, -s / 2)
+	end
+	if self._minBtn then
+		local s = mode == "Mobile" and math.max(32, touch - 8) or 28
+		self._minBtn.Size = UDim2.fromOffset(s, s)
+		self._minBtn.Position = UDim2.new(1, -(s * 2 + 10), 0.5, -s / 2)
 	end
 	-- Notify tabs to stack/unstack columns
 	for _, tab in ipairs(self._tabs or {}) do

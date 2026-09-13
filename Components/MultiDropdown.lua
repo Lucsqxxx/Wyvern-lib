@@ -4,8 +4,10 @@
 local Component = require(script.Parent.Parent.Core.Component)
 local Icons = require(script.Parent.Parent.Icons.Registry)
 local Constants = require(script.Parent.Parent.Core.Constants)
+local Responsive = require(script.Parent.Parent.Core.Responsive)
 local PopupManager = require(script.Parent.Parent.Core.PopupManager)
 local Constants = require(script.Parent.Parent.Core.Constants)
+local Responsive = require(script.Parent.Parent.Core.Responsive)
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -157,10 +159,16 @@ end
 
 function MultiDropdown:_displayText()
 	local list = setToList(self._selected)
-	if #list == 0 then return "None" end
-	if #list == 1 then return tostring(list[1]) end
-	if #list == 2 then return tostring(list[1]) .. ", " .. tostring(list[2]) end
-	return tostring(#list) .. " selected"
+	local n = #list
+	if n == 0 then
+		return "None"
+	elseif n == 1 then
+		return tostring(list[1])
+	elseif n <= 2 then
+		return table.concat(list, ", ")
+	else
+		return tostring(n) .. " selected"
+	end
 end
 
 function MultiDropdown:_rebuildOptions()
@@ -248,38 +256,35 @@ function MultiDropdown:_applyPopupSize(height)
 end
 
 function MultiDropdown:_positionPopup()
-	if not self._popup or not self._box then return end
+	if not self._popup or not self._box then
+		return
+	end
 	local overlay = PopupManager.GetOverlay()
 	local box = self._box
 	local popup = self._popup
 	local absPos = box.AbsolutePosition
 	local absSize = box.AbsoluteSize
-	local popupH = math.min(#self._options, 6) * 26 + 10
-	self:_applyPopupSize(popupH)
-	local w = self._popupWidth or 160
+	local rowH = 26
+	local desiredH = math.min(#self._options, 8) * rowH + 10
+	desiredH = math.min(desiredH, Responsive.MaxPopupHeight(absPos, absSize))
+	local desiredW = math.clamp(math.floor(absSize.X + 0.5), 96, Responsive.MaxPopupWidth())
 	local parent = overlay or box
 	if popup.Parent ~= parent then
 		popup.Parent = parent
 	end
 	if overlay and parent == overlay then
 		local oAbs = overlay.AbsolutePosition
-		local x = absPos.X - oAbs.X
-		local y = absPos.Y - oAbs.Y + absSize.Y + 4
-		local cam = workspace.CurrentCamera
-		local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
-		if absPos.Y + absSize.Y + 4 + popupH > vp.Y - 8 then
-			y = absPos.Y - oAbs.Y - popupH - 4
-		end
-		if x + w > vp.X - 8 then
-			x = math.max(8, vp.X - w - 8) - oAbs.X
-		end
-		popup.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
-		popup.Size = UDim2.fromOffset(w, popupH)
+		local x, y, w, h = Responsive.FitPopup(absPos, absSize, desiredW, desiredH, oAbs)
+		self._popupWidth = w
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(w, h)
 	else
 		popup.Position = UDim2.new(0, 0, 1, 4)
-		popup.Size = UDim2.fromOffset(w, popupH)
+		popup.Size = UDim2.fromOffset(desiredW, math.min(desiredH, 200))
+		self._popupWidth = desiredW
 	end
 end
+
 
 function MultiDropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end

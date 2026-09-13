@@ -6,6 +6,7 @@ local Component = require(script.Parent.Parent.Core.Component)
 local Icons = require(script.Parent.Parent.Icons.Registry)
 local Animation = require(script.Parent.Parent.Core.Animation)
 local Constants = require(script.Parent.Parent.Core.Constants)
+local Responsive = require(script.Parent.Parent.Core.Responsive)
 local PopupManager = require(script.Parent.Parent.Core.PopupManager)
 
 local Dropdown = setmetatable({}, { __index = Component })
@@ -233,7 +234,7 @@ function Dropdown:_applyPopupSize(height)
 	if self._box then
 		local aw = self._box.AbsoluteSize.X
 		if aw and aw > 1 then
-			w = math.clamp(math.floor(aw + 0.5), 96, 280)
+			w = math.clamp(math.floor(aw + 0.5), 96, Responsive.MaxPopupWidth())
 		end
 	end
 	local h = height
@@ -255,9 +256,10 @@ function Dropdown:_positionPopup()
 	local popup = self._popup
 	local absPos = box.AbsolutePosition
 	local absSize = box.AbsoluteSize
-	local popupH = math.min(#self._options, 6) * 26 + 10
-	self:_applyPopupSize(popupH)
-	local w = self._popupWidth or math.clamp(math.floor(absSize.X + 0.5), 96, 280)
+	local rowH = 26
+	local desiredH = math.min(#self._options, 8) * rowH + 10
+	desiredH = math.min(desiredH, Responsive.MaxPopupHeight(absPos, absSize))
+	local desiredW = math.clamp(math.floor(absSize.X + 0.5), 96, Responsive.MaxPopupWidth())
 
 	local parent = overlay or box
 	if popup.Parent ~= parent then
@@ -266,25 +268,19 @@ function Dropdown:_positionPopup()
 
 	if overlay and parent == overlay then
 		local oAbs = overlay.AbsolutePosition
-		local x = absPos.X - oAbs.X
-		local y = absPos.Y - oAbs.Y + absSize.Y + 4
-		local cam = workspace.CurrentCamera
-		local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
-		if absPos.Y + absSize.Y + 4 + popupH > vp.Y - 8 then
-			y = absPos.Y - oAbs.Y - popupH - 4
+		local x, y, w, h = Responsive.FitPopup(absPos, absSize, desiredW, desiredH, oAbs)
+		self._popupWidth = w
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(w, h)
+		-- Enable scroll if many options
+		if popup:IsA("ScrollingFrame") then
+			popup.CanvasSize = UDim2.fromOffset(0, #self._options * rowH + 10)
 		end
-		-- clamp horizontal inside viewport
-		if x + w > vp.X - 8 then
-			x = math.max(8, vp.X - w - 8) - oAbs.X
-		end
-		if x < 8 - oAbs.X then
-			x = 8 - oAbs.X
-		end
-		popup.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
-		popup.Size = UDim2.fromOffset(w, popupH)
 	else
+		local h = math.min(desiredH, 200)
+		self._popupWidth = desiredW
 		popup.Position = UDim2.new(0, 0, 1, 4)
-		popup.Size = UDim2.fromOffset(w, popupH)
+		popup.Size = UDim2.fromOffset(desiredW, h)
 	end
 end
 

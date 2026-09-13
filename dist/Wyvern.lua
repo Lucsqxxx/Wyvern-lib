@@ -2940,14 +2940,15 @@ end)
 -- ===== BEGIN Core.Responsive (Core/Responsive.lua) =====
 
 __wyvern_define("Core.Responsive", function()
--- Core/Responsive.lua — viewport breakpoints and sizing helpers
--- Desktop / Tablet / Mobile modes from CurrentCamera.ViewportSize
+-- Core/Responsive.lua — viewport breakpoints, safe area, touch targets, popup fit
+
+local GuiService = game:GetService("GuiService")
 
 local Responsive = {}
 
 Responsive.Breakpoints = {
-	Mobile = 520, -- width < Mobile -> Mobile
-	Tablet = 900, -- width < Tablet -> Tablet, else Desktop
+	Mobile = 520,
+	Tablet = 900,
 }
 
 Responsive.Margins = {
@@ -2959,7 +2960,7 @@ Responsive.Margins = {
 Responsive.Preferred = {
 	Desktop = Vector2.new(660, 510),
 	Tablet = Vector2.new(560, 480),
-	Mobile = Vector2.new(400, 640), -- capped by viewport - margins
+	Mobile = Vector2.new(400, 640),
 }
 
 Responsive.DefaultScale = {
@@ -2968,12 +2969,62 @@ Responsive.DefaultScale = {
 	Mobile = 0.9,
 }
 
+-- Visual control height vs minimum touch target (interaction)
+Responsive.ControlHeight = {
+	Desktop = 28,
+	Tablet = 30,
+	Mobile = 34,
+}
+
+Responsive.TouchTarget = {
+	Desktop = 28,
+	Tablet = 36,
+	Mobile = 44,
+}
+
+Responsive.NavIconSize = {
+	Desktop = 32,
+	Tablet = 36,
+	Mobile = 40,
+}
+
 function Responsive.GetViewportSize()
 	local cam = workspace.CurrentCamera
 	if cam then
 		return cam.ViewportSize
 	end
 	return Vector2.new(1920, 1080)
+end
+
+function Responsive.GetSafeInsets()
+	-- GuiService insets: top/bottom may include notch / home indicator
+	local ok, inset = pcall(function()
+		return GuiService:GetGuiInset()
+	end)
+	if ok and typeof(inset) == "Vector2" then
+		return inset -- typically top-left inset magnitude as Vector2
+	end
+	return Vector2.new(0, 0)
+end
+
+function Responsive.GetSafeArea()
+	local vp = Responsive.GetViewportSize()
+	local inset = Responsive.GetSafeInsets()
+	-- Usable rectangle in screen space (IgnoreGuiInset true: still keep soft margins)
+	local mode = Responsive.GetMode(vp)
+	local margin = Responsive.Margins[mode] or Responsive.Margins.Desktop
+	local top = math.max(margin.Y, inset.Y > 0 and (inset.Y * 0.25) or 0)
+	local bottom = margin.Y
+	local left = margin.X
+	local right = margin.X
+	return {
+		X = left,
+		Y = top,
+		Width = math.max(1, vp.X - left - right),
+		Height = math.max(1, vp.Y - top - bottom),
+		Viewport = vp,
+		Mode = mode,
+	}
 end
 
 function Responsive.GetMode(vp)
@@ -2995,12 +3046,11 @@ function Responsive.GetPreferredSize(mode, vp)
 	mode = mode or Responsive.GetMode(vp)
 	vp = vp or Responsive.GetViewportSize()
 	local pref = Responsive.Preferred[mode] or Responsive.Preferred.Desktop
-	local margin = Responsive.Margins[mode] or Responsive.Margins.Desktop
-	local maxW = math.max(280, vp.X - margin.X * 2)
-	local maxH = math.max(320, vp.Y - margin.Y * 2)
+	local safe = Responsive.GetSafeArea()
+	local maxW = math.max(280, safe.Width)
+	local maxH = math.max(320, safe.Height)
 	local w = math.min(pref.X, maxW)
 	local h = math.min(pref.Y, maxH)
-	-- On mobile portrait, prefer near-full height
 	if mode == "Mobile" then
 		w = maxW
 		h = maxH
@@ -3013,24 +3063,97 @@ function Responsive.GetDefaultScale(mode)
 	return Responsive.DefaultScale[mode] or 1
 end
 
+function Responsive.GetControlHeight(mode)
+	mode = mode or Responsive.GetMode()
+	return Responsive.ControlHeight[mode] or 28
+end
+
+function Responsive.GetTouchTarget(mode)
+	mode = mode or Responsive.GetMode()
+	return Responsive.TouchTarget[mode] or 28
+end
+
+function Responsive.GetNavIconSize(mode)
+	mode = mode or Responsive.GetMode()
+	return Responsive.NavIconSize[mode] or 32
+end
+
 function Responsive.ClampPosition(x, y, width, height, scale)
 	scale = scale or 1
-	local vp = Responsive.GetViewportSize()
+	local safe = Responsive.GetSafeArea()
 	local w = width * scale
 	local h = height * scale
-	x = math.clamp(x, 0, math.max(0, vp.X - w))
-	y = math.clamp(y, 0, math.max(0, vp.Y - h))
+	local minX = safe.X
+	local minY = safe.Y
+	local maxX = math.max(minX, safe.X + safe.Width - w)
+	local maxY = math.max(minY, safe.Y + safe.Height - h)
+	x = math.clamp(x, minX, maxX)
+	y = math.clamp(y, minY, maxY)
 	return x, y
 end
 
 function Responsive.CenterPosition(width, height, scale)
 	scale = scale or 1
-	local vp = Responsive.GetViewportSize()
+	local safe = Responsive.GetSafeArea()
 	local w = width * scale
 	local h = height * scale
-	local x = math.max(0, (vp.X - w) / 2)
-	local y = math.max(0, (vp.Y - h) / 2)
+	local x = safe.X + math.max(0, (safe.Width - w) / 2)
+	local y = safe.Y + math.max(0, (safe.Height - h) / 2)
 	return UDim2.fromOffset(math.floor(x), math.floor(y))
+end
+
+-- Fit a popup under/above a trigger in overlay space.
+-- Returns x, y, width, height (all offset, relative to overlay AbsolutePosition origin).
+function Responsive.FitPopup(triggerAbsPos, triggerAbsSize, desiredW, desiredH, overlayAbsPos)
+	overlayAbsPos = overlayAbsPos or Vector2.zero
+	local safe = Responsive.GetSafeArea()
+	local margin = 8
+	local maxW = math.max(120, safe.Width - margin * 2)
+	local w = math.clamp(math.floor(desiredW or 160), 96, maxW)
+
+	local spaceBelow = (safe.Y + safe.Height) - (triggerAbsPos.Y + triggerAbsSize.Y) - margin
+	local spaceAbove = triggerAbsPos.Y - safe.Y - margin
+	local maxH = math.max(80, math.max(spaceBelow, spaceAbove))
+	local h = math.clamp(math.floor(desiredH or 160), 40, maxH)
+
+	local openDown = spaceBelow >= spaceAbove or spaceBelow >= h
+	if spaceBelow < h and spaceAbove >= h then
+		openDown = false
+	elseif spaceAbove < h and spaceBelow >= h then
+		openDown = true
+	end
+
+	local x = triggerAbsPos.X - overlayAbsPos.X
+	local y
+	if openDown then
+		y = triggerAbsPos.Y - overlayAbsPos.Y + triggerAbsSize.Y + 4
+	else
+		y = triggerAbsPos.Y - overlayAbsPos.Y - h - 4
+	end
+
+	-- Horizontal clamp in screen space then convert to overlay-local
+	local screenX = overlayAbsPos.X + x
+	screenX = math.clamp(screenX, safe.X + margin, math.max(safe.X + margin, safe.X + safe.Width - w - margin))
+	x = screenX - overlayAbsPos.X
+
+	local screenY = overlayAbsPos.Y + y
+	screenY = math.clamp(screenY, safe.Y + margin, math.max(safe.Y + margin, safe.Y + safe.Height - h - margin))
+	y = screenY - overlayAbsPos.Y
+
+	return math.floor(x), math.floor(y), w, math.floor(h), openDown
+end
+
+function Responsive.MaxPopupWidth()
+	local safe = Responsive.GetSafeArea()
+	return math.max(120, safe.Width - 16)
+end
+
+function Responsive.MaxPopupHeight(triggerAbsPos, triggerAbsSize)
+	local safe = Responsive.GetSafeArea()
+	local margin = 8
+	local below = (safe.Y + safe.Height) - (triggerAbsPos.Y + triggerAbsSize.Y) - margin
+	local above = triggerAbsPos.Y - safe.Y - margin
+	return math.max(80, math.max(below, above))
 end
 
 return Responsive
@@ -4116,6 +4239,7 @@ local Component = __wyvern_require("Core.Component")
 local Icons = __wyvern_require("Icons.Registry")
 local Animation = __wyvern_require("Core.Animation")
 local Constants = __wyvern_require("Core.Constants")
+local Responsive = __wyvern_require("Core.Responsive")
 local PopupManager = __wyvern_require("Core.PopupManager")
 
 local Dropdown = setmetatable({}, { __index = Component })
@@ -4343,7 +4467,7 @@ function Dropdown:_applyPopupSize(height)
 	if self._box then
 		local aw = self._box.AbsoluteSize.X
 		if aw and aw > 1 then
-			w = math.clamp(math.floor(aw + 0.5), 96, 280)
+			w = math.clamp(math.floor(aw + 0.5), 96, Responsive.MaxPopupWidth())
 		end
 	end
 	local h = height
@@ -4365,9 +4489,10 @@ function Dropdown:_positionPopup()
 	local popup = self._popup
 	local absPos = box.AbsolutePosition
 	local absSize = box.AbsoluteSize
-	local popupH = math.min(#self._options, 6) * 26 + 10
-	self:_applyPopupSize(popupH)
-	local w = self._popupWidth or math.clamp(math.floor(absSize.X + 0.5), 96, 280)
+	local rowH = 26
+	local desiredH = math.min(#self._options, 8) * rowH + 10
+	desiredH = math.min(desiredH, Responsive.MaxPopupHeight(absPos, absSize))
+	local desiredW = math.clamp(math.floor(absSize.X + 0.5), 96, Responsive.MaxPopupWidth())
 
 	local parent = overlay or box
 	if popup.Parent ~= parent then
@@ -4376,25 +4501,19 @@ function Dropdown:_positionPopup()
 
 	if overlay and parent == overlay then
 		local oAbs = overlay.AbsolutePosition
-		local x = absPos.X - oAbs.X
-		local y = absPos.Y - oAbs.Y + absSize.Y + 4
-		local cam = workspace.CurrentCamera
-		local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
-		if absPos.Y + absSize.Y + 4 + popupH > vp.Y - 8 then
-			y = absPos.Y - oAbs.Y - popupH - 4
+		local x, y, w, h = Responsive.FitPopup(absPos, absSize, desiredW, desiredH, oAbs)
+		self._popupWidth = w
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(w, h)
+		-- Enable scroll if many options
+		if popup:IsA("ScrollingFrame") then
+			popup.CanvasSize = UDim2.fromOffset(0, #self._options * rowH + 10)
 		end
-		-- clamp horizontal inside viewport
-		if x + w > vp.X - 8 then
-			x = math.max(8, vp.X - w - 8) - oAbs.X
-		end
-		if x < 8 - oAbs.X then
-			x = 8 - oAbs.X
-		end
-		popup.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
-		popup.Size = UDim2.fromOffset(w, popupH)
 	else
+		local h = math.min(desiredH, 200)
+		self._popupWidth = desiredW
 		popup.Position = UDim2.new(0, 0, 1, 4)
-		popup.Size = UDim2.fromOffset(w, popupH)
+		popup.Size = UDim2.fromOffset(desiredW, h)
 	end
 end
 
@@ -4533,8 +4652,10 @@ __wyvern_define("Components.MultiDropdown", function()
 local Component = __wyvern_require("Core.Component")
 local Icons = __wyvern_require("Icons.Registry")
 local Constants = __wyvern_require("Core.Constants")
+local Responsive = __wyvern_require("Core.Responsive")
 local PopupManager = __wyvern_require("Core.PopupManager")
 local Constants = __wyvern_require("Core.Constants")
+local Responsive = __wyvern_require("Core.Responsive")
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -4686,10 +4807,16 @@ end
 
 function MultiDropdown:_displayText()
 	local list = setToList(self._selected)
-	if #list == 0 then return "None" end
-	if #list == 1 then return tostring(list[1]) end
-	if #list == 2 then return tostring(list[1]) .. ", " .. tostring(list[2]) end
-	return tostring(#list) .. " selected"
+	local n = #list
+	if n == 0 then
+		return "None"
+	elseif n == 1 then
+		return tostring(list[1])
+	elseif n <= 2 then
+		return table.concat(list, ", ")
+	else
+		return tostring(n) .. " selected"
+	end
 end
 
 function MultiDropdown:_rebuildOptions()
@@ -4777,38 +4904,35 @@ function MultiDropdown:_applyPopupSize(height)
 end
 
 function MultiDropdown:_positionPopup()
-	if not self._popup or not self._box then return end
+	if not self._popup or not self._box then
+		return
+	end
 	local overlay = PopupManager.GetOverlay()
 	local box = self._box
 	local popup = self._popup
 	local absPos = box.AbsolutePosition
 	local absSize = box.AbsoluteSize
-	local popupH = math.min(#self._options, 6) * 26 + 10
-	self:_applyPopupSize(popupH)
-	local w = self._popupWidth or 160
+	local rowH = 26
+	local desiredH = math.min(#self._options, 8) * rowH + 10
+	desiredH = math.min(desiredH, Responsive.MaxPopupHeight(absPos, absSize))
+	local desiredW = math.clamp(math.floor(absSize.X + 0.5), 96, Responsive.MaxPopupWidth())
 	local parent = overlay or box
 	if popup.Parent ~= parent then
 		popup.Parent = parent
 	end
 	if overlay and parent == overlay then
 		local oAbs = overlay.AbsolutePosition
-		local x = absPos.X - oAbs.X
-		local y = absPos.Y - oAbs.Y + absSize.Y + 4
-		local cam = workspace.CurrentCamera
-		local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
-		if absPos.Y + absSize.Y + 4 + popupH > vp.Y - 8 then
-			y = absPos.Y - oAbs.Y - popupH - 4
-		end
-		if x + w > vp.X - 8 then
-			x = math.max(8, vp.X - w - 8) - oAbs.X
-		end
-		popup.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
-		popup.Size = UDim2.fromOffset(w, popupH)
+		local x, y, w, h = Responsive.FitPopup(absPos, absSize, desiredW, desiredH, oAbs)
+		self._popupWidth = w
+		popup.Position = UDim2.fromOffset(x, y)
+		popup.Size = UDim2.fromOffset(w, h)
 	else
 		popup.Position = UDim2.new(0, 0, 1, 4)
-		popup.Size = UDim2.fromOffset(w, popupH)
+		popup.Size = UDim2.fromOffset(desiredW, math.min(desiredH, 200))
+		self._popupWidth = desiredW
 	end
 end
+
 
 function MultiDropdown:Open()
 	if self._destroyed or self._open or not self._enabled then return end
@@ -6656,6 +6780,8 @@ function Window.new(config, theme, scale)
 	titleCluster.Position = UDim2.fromOffset(36, 0)
 	titleCluster.Size = UDim2.new(1, -120, 1, 0)
 	titleCluster.ClipsDescendants = true
+	titleCluster.Size = UDim2.new(1, -100, 1, 0)
+	titleCluster.ClipsDescendants = true
 	titleCluster.Parent = header
 
 	local titleLayout = Instance.new("UIListLayout")
@@ -6669,8 +6795,8 @@ function Window.new(config, theme, scale)
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
 	title.BackgroundTransparency = 1
-	title.AutomaticSize = Enum.AutomaticSize.X
-	title.Size = UDim2.fromOffset(0, Constants.HeaderHeight)
+	title.AutomaticSize = Enum.AutomaticSize.None
+	title.Size = UDim2.new(1, -100, 0, Constants.HeaderHeight)
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = Constants.TitleSize
 	title.TextColor3 = theme:Get("Text")
@@ -6703,6 +6829,7 @@ function Window.new(config, theme, scale)
 	closeBtn.Text = ""
 	closeBtn.ZIndex = 5
 	closeBtn.Parent = header
+	self._closeBtn = closeBtn
 	Icons.Create(closeBtn, "Close", { Size = 12, Theme = theme, Color = theme:Get("TextSecondary"), ZIndex = 6 })
 
 	local minBtn = Instance.new("TextButton")
@@ -6713,6 +6840,7 @@ function Window.new(config, theme, scale)
 	minBtn.Text = ""
 	minBtn.ZIndex = 5
 	minBtn.Parent = header
+	self._minBtn = minBtn
 	Icons.Create(minBtn, "Minimize", { Size = 12, Theme = theme, Color = theme:Get("TextSecondary"), ZIndex = 6 })
 
 	self._maid:Give(closeBtn.MouseButton1Click:Connect(function()
@@ -7675,14 +7803,33 @@ function Window:ApplyResponsiveLayout(force)
 	local x, y = clampPosition(pos.X.Offset, pos.Y.Offset, lw, lh, self._scale)
 	self._main.Position = UDim2.fromOffset(x, y)
 	-- Bottom nav: wider on mobile for touch
+	local navSize = Responsive.GetNavIconSize(mode)
 	if self._bottomNav then
 		if mode == "Mobile" then
-			self._bottomNav.Size = UDim2.fromOffset(math.min(280, lw - 24), 40)
-			self._bottomNav.Position = UDim2.new(0.5, -math.min(140, (lw - 24) / 2), 1, -52)
+			local navW = math.min(math.max(260, #self._navIcons * (navSize + 8) + 24), lw - 16)
+			self._bottomNav.Size = UDim2.fromOffset(navW, navSize + 12)
+			self._bottomNav.Position = UDim2.new(0.5, -navW / 2, 1, -(navSize + 20))
 		else
 			self._bottomNav.Size = UDim2.fromOffset(220, 36)
 			self._bottomNav.Position = UDim2.new(0.5, -110, 1, -48)
 		end
+	end
+	local touch = Responsive.GetTouchTarget(mode)
+	for _, btn in ipairs(self._navIcons or {}) do
+		btn.Size = UDim2.fromOffset(navSize, navSize)
+	end
+	for _, btn in ipairs(self._secIcons or {}) do
+		btn.Size = UDim2.fromOffset(navSize, navSize)
+	end
+	if self._closeBtn then
+		local s = mode == "Mobile" and math.max(32, touch - 8) or 28
+		self._closeBtn.Size = UDim2.fromOffset(s, s)
+		self._closeBtn.Position = UDim2.new(1, -(s + 6), 0.5, -s / 2)
+	end
+	if self._minBtn then
+		local s = mode == "Mobile" and math.max(32, touch - 8) or 28
+		self._minBtn.Size = UDim2.fromOffset(s, s)
+		self._minBtn.Position = UDim2.new(1, -(s * 2 + 10), 0.5, -s / 2)
 	end
 	-- Notify tabs to stack/unstack columns
 	for _, tab in ipairs(self._tabs or {}) do
