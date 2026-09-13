@@ -155,9 +155,6 @@ function Notification:Destroy()
 	setmetatable(self, nil)
 end
 
-return Notification
-
-
 -- Library-level helper: creates a temporary ScreenGui toast stack if needed
 function Notification.Show(config, theme)
 	config = config or {}
@@ -209,3 +206,5 @@ function Notification.Show(config, theme)
 	}
 	return mgr:Notify(adapted)
 end
+
+return Notification
