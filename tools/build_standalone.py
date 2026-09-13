@@ -37,6 +37,7 @@ ORDER = [
     ("Core/SearchIndex.lua", "Core.SearchIndex"),
     ("Core/TooltipManager.lua", "Core.TooltipManager"),
     ("Core/Registry.lua", "Core.Registry"),
+    ("Core/Responsive.lua", "Core.Responsive"),
     ("Core/Modal.lua", "Core.Modal"),
     ("Core/PopupManager.lua", "Core.PopupManager"),
     ("Components/Button.lua", "Components.Button"),

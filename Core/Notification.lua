@@ -23,8 +23,12 @@ function Notification.new(parentGui, theme)
 	local holder = Instance.new("Frame")
 	holder.Name = "WyvernNotifications"
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(0, 300, 1, 0)
-	holder.Position = UDim2.new(1, -320, 0, 20)
+	-- Width adapts to viewport (mobile-safe)
+	local cam = workspace.CurrentCamera
+	local vpX = cam and cam.ViewportSize.X or 1920
+	local toastW = math.min(300, math.max(200, vpX - 24))
+	holder.Size = UDim2.new(0, toastW, 1, 0)
+	holder.Position = UDim2.new(1, -(toastW + 12), 0, 20)
 	holder.AnchorPoint = Vector2.new(0, 0)
 	holder.Parent = parentGui
 	self._holder = holder

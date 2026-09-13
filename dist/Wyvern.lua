@@ -1853,8 +1853,12 @@ function Notification.new(parentGui, theme)
 	local holder = Instance.new("Frame")
 	holder.Name = "WyvernNotifications"
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(0, 300, 1, 0)
-	holder.Position = UDim2.new(1, -320, 0, 20)
+	-- Width adapts to viewport (mobile-safe)
+	local cam = workspace.CurrentCamera
+	local vpX = cam and cam.ViewportSize.X or 1920
+	local toastW = math.min(300, math.max(200, vpX - 24))
+	holder.Size = UDim2.new(0, toastW, 1, 0)
+	holder.Position = UDim2.new(1, -(toastW + 12), 0, 20)
 	holder.AnchorPoint = Vector2.new(0, 0)
 	holder.Parent = parentGui
 	self._holder = holder
@@ -2932,6 +2936,107 @@ return Registry
 end)
 
 -- ===== END Core.Registry =====
+
+-- ===== BEGIN Core.Responsive (Core/Responsive.lua) =====
+
+__wyvern_define("Core.Responsive", function()
+-- Core/Responsive.lua — viewport breakpoints and sizing helpers
+-- Desktop / Tablet / Mobile modes from CurrentCamera.ViewportSize
+
+local Responsive = {}
+
+Responsive.Breakpoints = {
+	Mobile = 520, -- width < Mobile -> Mobile
+	Tablet = 900, -- width < Tablet -> Tablet, else Desktop
+}
+
+Responsive.Margins = {
+	Mobile = Vector2.new(10, 12),
+	Tablet = Vector2.new(24, 28),
+	Desktop = Vector2.new(40, 40),
+}
+
+Responsive.Preferred = {
+	Desktop = Vector2.new(660, 510),
+	Tablet = Vector2.new(560, 480),
+	Mobile = Vector2.new(400, 640), -- capped by viewport - margins
+}
+
+Responsive.DefaultScale = {
+	Desktop = 1,
+	Tablet = 0.95,
+	Mobile = 0.9,
+}
+
+function Responsive.GetViewportSize()
+	local cam = workspace.CurrentCamera
+	if cam then
+		return cam.ViewportSize
+	end
+	return Vector2.new(1920, 1080)
+end
+
+function Responsive.GetMode(vp)
+	vp = vp or Responsive.GetViewportSize()
+	local w = vp.X
+	if w < Responsive.Breakpoints.Mobile then
+		return "Mobile"
+	elseif w < Responsive.Breakpoints.Tablet then
+		return "Tablet"
+	end
+	return "Desktop"
+end
+
+function Responsive.IsNarrow(vp)
+	return Responsive.GetMode(vp) == "Mobile"
+end
+
+function Responsive.GetPreferredSize(mode, vp)
+	mode = mode or Responsive.GetMode(vp)
+	vp = vp or Responsive.GetViewportSize()
+	local pref = Responsive.Preferred[mode] or Responsive.Preferred.Desktop
+	local margin = Responsive.Margins[mode] or Responsive.Margins.Desktop
+	local maxW = math.max(280, vp.X - margin.X * 2)
+	local maxH = math.max(320, vp.Y - margin.Y * 2)
+	local w = math.min(pref.X, maxW)
+	local h = math.min(pref.Y, maxH)
+	-- On mobile portrait, prefer near-full height
+	if mode == "Mobile" then
+		w = maxW
+		h = maxH
+	end
+	return math.floor(w), math.floor(h)
+end
+
+function Responsive.GetDefaultScale(mode)
+	mode = mode or Responsive.GetMode()
+	return Responsive.DefaultScale[mode] or 1
+end
+
+function Responsive.ClampPosition(x, y, width, height, scale)
+	scale = scale or 1
+	local vp = Responsive.GetViewportSize()
+	local w = width * scale
+	local h = height * scale
+	x = math.clamp(x, 0, math.max(0, vp.X - w))
+	y = math.clamp(y, 0, math.max(0, vp.Y - h))
+	return x, y
+end
+
+function Responsive.CenterPosition(width, height, scale)
+	scale = scale or 1
+	local vp = Responsive.GetViewportSize()
+	local w = width * scale
+	local h = height * scale
+	local x = math.max(0, (vp.X - w) / 2)
+	local y = math.max(0, (vp.Y - h) / 2)
+	return UDim2.fromOffset(math.floor(x), math.floor(y))
+end
+
+return Responsive
+end)
+
+-- ===== END Core.Responsive =====
 
 -- ===== BEGIN Core.Modal (Core/Modal.lua) =====
 
@@ -6279,6 +6384,39 @@ function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
 return Tab
+
+function Tab:ApplyResponsiveLayout(mode)
+	mode = mode or (self._window and self._window.GetResponsiveMode and self._window:GetResponsiveMode()) or "Desktop"
+	if not self._left or not self._right or not self._columns then
+		return
+	end
+	if mode == "Mobile" then
+		-- Stack columns vertically full width
+		self._left.Size = UDim2.new(1, 0, 0, 0)
+		self._left.Position = UDim2.fromOffset(0, 0)
+		self._right.Size = UDim2.new(1, 0, 0, 0)
+		self._right.Position = UDim2.new(0, 0, 0, 0)
+		-- Place right under left via UIListLayout on columns if needed
+		if not self._columnsLayout then
+			local list = Instance.new("UIListLayout")
+			list.SortOrder = Enum.SortOrder.LayoutOrder
+			list.Padding = UDim.new(0, 10)
+			list.Parent = self._columns
+			self._columnsLayout = list
+			self._left.LayoutOrder = 1
+			self._right.LayoutOrder = 2
+		end
+		self._columnsLayout.Enabled = true
+	else
+		if self._columnsLayout then
+			self._columnsLayout.Enabled = false
+		end
+		self._left.Size = UDim2.new(0.5, -6, 0, 0)
+		self._left.Position = UDim2.fromOffset(0, 0)
+		self._right.Size = UDim2.new(0.5, -6, 0, 0)
+		self._right.Position = UDim2.new(0.5, 6, 0, 0)
+	end
+end
 end)
 
 -- ===== END Core.Tab =====
@@ -6302,6 +6440,7 @@ local Constants = __wyvern_require("Core.Constants")
 local Icons = __wyvern_require("Icons.Registry")
 local Notification = __wyvern_require("Core.Notification")
 local PopupManager = __wyvern_require("Core.PopupManager")
+local Responsive = __wyvern_require("Core.Responsive")
 local Registry = __wyvern_require("Core.Registry")
 local SearchIndex = __wyvern_require("Core.SearchIndex")
 local TooltipManager = __wyvern_require("Core.TooltipManager")
@@ -6343,32 +6482,16 @@ local function getGuiParent()
 end
 
 local function getViewportSize()
-	local cam = workspace.CurrentCamera
-	if cam then
-		return cam.ViewportSize
-	end
-	return Vector2.new(1920, 1080)
+	return Responsive.GetViewportSize()
 end
 
 -- Always use offset-only positions so drag/minimize never mix Scale and Offset.
 local function centerPosition(width, height, scale)
-	scale = scale or 1
-	local vp = getViewportSize()
-	local w = width * scale
-	local h = height * scale
-	local x = math.max(0, (vp.X - w) / 2)
-	local y = math.max(0, (vp.Y - h) / 2)
-	return UDim2.fromOffset(x, y)
+	return Responsive.CenterPosition(width, height, scale)
 end
 
 local function clampPosition(x, y, width, height, scale)
-	scale = scale or 1
-	local vp = getViewportSize()
-	local w = width * scale
-	local h = height * scale
-	x = math.clamp(x, 0, math.max(0, vp.X - w))
-	y = math.clamp(y, 0, math.max(0, vp.Y - h))
-	return x, y
+	return Responsive.ClampPosition(x, y, width, height, scale)
 end
 
 function Window.new(config, theme, scale)
@@ -6452,8 +6575,21 @@ function Window.new(config, theme, scale)
 	-- Main window: offset-only position from the start
 	local main = Instance.new("Frame")
 	main.Name = "MainWindow"
-	main.Size = UDim2.fromOffset(Constants.WindowWidth, Constants.WindowHeight)
-	main.Position = centerPosition(Constants.WindowWidth, Constants.WindowHeight, self._scale)
+	-- Responsive logical size
+	local mode = Responsive.GetMode()
+	local lw, lh = Responsive.GetPreferredSize(mode)
+	if config.Width then lw = tonumber(config.Width) or lw end
+	if config.Height then lh = tonumber(config.Height) or lh end
+	self._logicalWidth = lw
+	self._logicalHeight = lh
+	self._responsiveMode = mode
+	self._userScaleLocked = config.Scale ~= nil or scale ~= nil
+	if not self._userScaleLocked then
+		self._scale = Responsive.GetDefaultScale(mode)
+		if self._uiScale then self._uiScale.Scale = self._scale end
+	end
+	main.Size = UDim2.fromOffset(lw, lh)
+	main.Position = centerPosition(lw, lh, self._scale)
 	main.BackgroundColor3 = theme:Get("Background")
 	main.BorderSizePixel = 0
 	main.Active = true -- receives input so children work; drag is only on handle
@@ -7388,6 +7524,7 @@ function Window:SetVisible(visible)
 end
 
 function Window:SetScale(scale)
+	self._userScaleLocked = true
 	if self._destroyed then
 		return
 	end
@@ -7512,6 +7649,54 @@ function Window:Search(query)
 	return self._searchIndex and self._searchIndex:Search(query) or {}
 end
 
+
+function Window:ApplyResponsiveLayout(force)
+	if self._destroyed or not self._main then
+		return
+	end
+	local mode = Responsive.GetMode()
+	local prev = self._responsiveMode
+	self._responsiveMode = mode
+	local lw, lh = Responsive.GetPreferredSize(mode)
+	-- Preserve explicit Width/Height only if set at construction via config flags
+	if self._configWidth then lw = self._configWidth end
+	if self._configHeight then lh = self._configHeight end
+	self._logicalWidth = lw
+	self._logicalHeight = lh
+	if not self._userScaleLocked then
+		local s = Responsive.GetDefaultScale(mode)
+		self._scale = s
+		if self._uiScale then
+			self._uiScale.Scale = s
+		end
+	end
+	local pos = self._main.Position
+	self._main.Size = UDim2.fromOffset(lw, lh)
+	local x, y = clampPosition(pos.X.Offset, pos.Y.Offset, lw, lh, self._scale)
+	self._main.Position = UDim2.fromOffset(x, y)
+	-- Bottom nav: wider on mobile for touch
+	if self._bottomNav then
+		if mode == "Mobile" then
+			self._bottomNav.Size = UDim2.fromOffset(math.min(280, lw - 24), 40)
+			self._bottomNav.Position = UDim2.new(0.5, -math.min(140, (lw - 24) / 2), 1, -52)
+		else
+			self._bottomNav.Size = UDim2.fromOffset(220, 36)
+			self._bottomNav.Position = UDim2.new(0.5, -110, 1, -48)
+		end
+	end
+	-- Notify tabs to stack/unstack columns
+	for _, tab in ipairs(self._tabs or {}) do
+		if type(tab.ApplyResponsiveLayout) == "function" then
+			pcall(function()
+				tab:ApplyResponsiveLayout(mode)
+			end)
+		end
+	end
+end
+
+function Window:GetResponsiveMode()
+	return self._responsiveMode or Responsive.GetMode()
+end
 
 return Window
 end)

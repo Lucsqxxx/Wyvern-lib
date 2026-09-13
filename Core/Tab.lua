@@ -142,3 +142,36 @@ function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
 return Tab
+
+function Tab:ApplyResponsiveLayout(mode)
+	mode = mode or (self._window and self._window.GetResponsiveMode and self._window:GetResponsiveMode()) or "Desktop"
+	if not self._left or not self._right or not self._columns then
+		return
+	end
+	if mode == "Mobile" then
+		-- Stack columns vertically full width
+		self._left.Size = UDim2.new(1, 0, 0, 0)
+		self._left.Position = UDim2.fromOffset(0, 0)
+		self._right.Size = UDim2.new(1, 0, 0, 0)
+		self._right.Position = UDim2.new(0, 0, 0, 0)
+		-- Place right under left via UIListLayout on columns if needed
+		if not self._columnsLayout then
+			local list = Instance.new("UIListLayout")
+			list.SortOrder = Enum.SortOrder.LayoutOrder
+			list.Padding = UDim.new(0, 10)
+			list.Parent = self._columns
+			self._columnsLayout = list
+			self._left.LayoutOrder = 1
+			self._right.LayoutOrder = 2
+		end
+		self._columnsLayout.Enabled = true
+	else
+		if self._columnsLayout then
+			self._columnsLayout.Enabled = false
+		end
+		self._left.Size = UDim2.new(0.5, -6, 0, 0)
+		self._left.Position = UDim2.fromOffset(0, 0)
+		self._right.Size = UDim2.new(0.5, -6, 0, 0)
+		self._right.Position = UDim2.new(0.5, 6, 0, 0)
+	end
+end
