@@ -2101,7 +2101,7 @@ end)
 
 __wyvern_define("Components.Switch", function()
 -- Components/Switch.lua — alias of Toggle with Name defaults for switch semantics
-local Toggle = __wyvern_require("Core.Toggle")
+local Toggle = __wyvern_require("Components.Toggle")
 local Switch = {}
 function Switch.new(config, parent, theme, search, input)
 	config = config or {}
@@ -2493,12 +2493,12 @@ end
 local function factories(self)
 	local parent = self._instance
 	local theme = self._theme
-	local Button = __wyvern_require("Core.Button")
-	local Toggle = __wyvern_require("Core.Toggle")
-	local Slider = __wyvern_require("Core.Slider")
-	local Label = __wyvern_require("Core.Label")
-	local Dropdown = __wyvern_require("Core.Dropdown")
-	local Textbox = __wyvern_require("Core.Textbox")
+	local Button = __wyvern_require("Components.Button")
+	local Toggle = __wyvern_require("Components.Toggle")
+	local Slider = __wyvern_require("Components.Slider")
+	local Label = __wyvern_require("Components.Label")
+	local Dropdown = __wyvern_require("Components.Dropdown")
+	local Textbox = __wyvern_require("Components.Textbox")
 	local function wrap(ctor, config)
 		if self._destroyed then return nil end
 		local c = ctor(config or {}, parent, theme, nil, nil)
@@ -5310,16 +5310,16 @@ local Maid = __wyvern_require("Core.Maid")
 local Constants = __wyvern_require("Core.Constants")
 local Flags = __wyvern_require("Core.Flags")
 
-local Button = __wyvern_require("Core.Button")
-local Toggle = __wyvern_require("Core.Toggle")
-local Slider = __wyvern_require("Core.Slider")
-local Keybind = __wyvern_require("Core.Keybind")
-local Label = __wyvern_require("Core.Label")
-local Dropdown = __wyvern_require("Core.Dropdown")
-local MultiDropdown = __wyvern_require("Core.MultiDropdown")
-local Textbox = __wyvern_require("Core.Textbox")
-local ColorPicker = __wyvern_require("Core.ColorPicker")
-local Divider = __wyvern_require("Core.Divider")
+local Button = __wyvern_require("Components.Button")
+local Toggle = __wyvern_require("Components.Toggle")
+local Slider = __wyvern_require("Components.Slider")
+local Keybind = __wyvern_require("Components.Keybind")
+local Label = __wyvern_require("Components.Label")
+local Dropdown = __wyvern_require("Components.Dropdown")
+local MultiDropdown = __wyvern_require("Components.MultiDropdown")
+local Textbox = __wyvern_require("Components.Textbox")
+local ColorPicker = __wyvern_require("Components.ColorPicker")
+local Divider = __wyvern_require("Components.Divider")
 
 local Feature = {}
 Feature.__index = Feature
@@ -6110,9 +6110,6 @@ function Section:Destroy()
 	setmetatable(self, nil)
 end
 
-return Section
-
-
 -- Preferred Add* aliases (Create* retained for compatibility)
 function Section:AddButton(c) return self:CreateButton(c) end
 function Section:AddToggle(c) return self:CreateToggle(c) end
@@ -6129,6 +6126,7 @@ function Section:AddParagraph(c) return self:CreateParagraph(c) end
 function Section:AddDivider(c) return self:CreateDivider(c) end
 function Section:AddSpacer(c) return self:CreateSpacer(c) end
 function Section:AddFeature(c) return self:CreateFeature(c) end
+return Section
 end)
 
 -- ===== END Core.Section =====
@@ -6276,11 +6274,10 @@ function Tab:Destroy()
 	setmetatable(self, nil)
 end
 
-return Tab
-
 function Tab:AddSection(config)
 	return self:CreateSection(config)
 end
+return Tab
 end)
 
 -- ===== END Core.Tab =====
@@ -7154,7 +7151,12 @@ function Window:OpenSettings()
 		Name = "Center Window",
 		Callback = function()
 			if self._main then
-				local pos = centerPosition(Constants.WindowWidth, Constants.WindowHeight, self._scale)
+				local cam = workspace.CurrentCamera
+				local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+				local scale = self._scale or 1
+				local w = Constants.WindowWidth * scale
+				local h = Constants.WindowHeight * scale
+				local pos = UDim2.fromOffset(math.max(0, (vp.X - w) / 2), math.max(0, (vp.Y - h) / 2))
 				self._main.Position = pos
 				self._savedPosition = pos
 				self:_syncSecondary()
@@ -7474,8 +7476,6 @@ function Window:Destroy()
 	setmetatable(self, nil)
 end
 
-return Window
-
 function Window:AddTab(config)
 	return self:CreateTab(config)
 end
@@ -7518,6 +7518,9 @@ end
 function Window:Search(query)
 	return self._searchIndex and self._searchIndex:Search(query) or {}
 end
+
+
+return Window
 end)
 
 -- ===== END Core.Window =====
@@ -7528,15 +7531,7 @@ __wyvern_define("init", function()
 --[[
 	Wyvern UI Lib by Lucsqx
 	A production-quality, reusable Roblox Luau UI framework.
-
-	Version: 1.0.0
-
-	Usage:
-		local Wyvern = require(path.To.Wyvern)
-		local Window = Wyvern:CreateWindow({
-			Name = "My UI",
-			Version = "1.0.0",
-		})
+	Version: 1.1.0
 ]]
 
 local Theme = __wyvern_require("Core.Theme")
@@ -7548,16 +7543,25 @@ local Flags = __wyvern_require("Core.Flags")
 local Notification = __wyvern_require("Core.Notification")
 local Modal = __wyvern_require("Core.Modal")
 local ThemeRegistry = __wyvern_require("Core.ThemeRegistry")
+local SearchIndex = __wyvern_require("Core.SearchIndex")
 
 local Wyvern = {
-	_version = "1.0.0",
+	_version = "1.1.0",
 	_theme = nil,
 	_scale = 1,
+	_debug = false,
 	Icons = Icons,
 	Constants = Constants,
-	Version = "1.0.0",
+	Version = "1.1.0",
 	Flags = Flags,
+	Theme = Theme,
 }
+
+-- Register default theme
+pcall(function()
+	ThemeRegistry.Register("Sakura", SakuraTheme)
+	ThemeRegistry.Register("Default", SakuraTheme)
+end)
 
 function Wyvern:CreateWindow(config)
 	config = config or {}
@@ -7566,6 +7570,7 @@ function Wyvern:CreateWindow(config)
 	end
 	if not self._theme then
 		self._theme = Theme.new(SakuraTheme)
+		ThemeRegistry.BindActive(self._theme)
 	end
 	return Window.new(config, self._theme, self._scale)
 end
@@ -7580,6 +7585,7 @@ function Wyvern:SetTheme(themeTable)
 	else
 		self._theme:Apply(themeTable)
 	end
+	ThemeRegistry.BindActive(self._theme)
 end
 
 function Wyvern:GetTheme()
@@ -7587,34 +7593,12 @@ function Wyvern:GetTheme()
 end
 
 function Wyvern:SetScale(scale)
-	self._scale = math.clamp(tonumber(scale) or 1, 0.5, 2)
+	self._scale = tonumber(scale) or 1
 end
 
 function Wyvern:GetScale()
-	return self._scale
+	return self._scale or 1
 end
-
--- Convenience export
-Wyvern.Theme = Theme
-
--- Convenience: notify through the most recently created window if available
-local _lastWindow = nil
-local _origCreate = Wyvern.CreateWindow
-function Wyvern:CreateWindow(config)
-	local win = _origCreate(self, config)
-	_lastWindow = win
-	return win
-end
-
-function Wyvern:Notify(config)
-	if _lastWindow and not _lastWindow._destroyed then
-		return _lastWindow:Notify(config)
-	end
-	warn("[Wyvern] Notify: no active window")
-end
-
-return Wyvern
-
 
 function Wyvern:GetFlag(name)
 	return Flags.Get(name)
@@ -7640,7 +7624,6 @@ end
 function Wyvern.SendNotification(config)
 	return Wyvern:Notify(config)
 end
-
 
 function Wyvern:Confirm(config)
 	config = config or {}
@@ -7683,8 +7666,7 @@ function Wyvern:DebugDump()
 end
 
 function Wyvern:RegisterSearchItem(entry)
-	-- global index optional; prefer window:Search
-	self._globalSearch = self._globalSearch or __wyvern_require("Core.SearchIndex").new()
+	self._globalSearch = self._globalSearch or SearchIndex.new()
 	return self._globalSearch:Register(entry)
 end
 
@@ -7694,6 +7676,8 @@ function Wyvern:Search(query)
 	end
 	return {}
 end
+
+return Wyvern
 end)
 
 -- ===== END init =====

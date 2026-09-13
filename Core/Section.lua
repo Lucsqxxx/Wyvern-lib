@@ -341,9 +341,6 @@ function Section:Destroy()
 	setmetatable(self, nil)
 end
 
-return Section
-
-
 -- Preferred Add* aliases (Create* retained for compatibility)
 function Section:AddButton(c) return self:CreateButton(c) end
 function Section:AddToggle(c) return self:CreateToggle(c) end
@@ -360,3 +357,4 @@ function Section:AddParagraph(c) return self:CreateParagraph(c) end
 function Section:AddDivider(c) return self:CreateDivider(c) end
 function Section:AddSpacer(c) return self:CreateSpacer(c) end
 function Section:AddFeature(c) return self:CreateFeature(c) end
+return Section

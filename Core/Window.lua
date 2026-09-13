@@ -864,7 +864,12 @@ function Window:OpenSettings()
 		Name = "Center Window",
 		Callback = function()
 			if self._main then
-				local pos = centerPosition(Constants.WindowWidth, Constants.WindowHeight, self._scale)
+				local cam = workspace.CurrentCamera
+				local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+				local scale = self._scale or 1
+				local w = Constants.WindowWidth * scale
+				local h = Constants.WindowHeight * scale
+				local pos = UDim2.fromOffset(math.max(0, (vp.X - w) / 2), math.max(0, (vp.Y - h) / 2))
 				self._main.Position = pos
 				self._savedPosition = pos
 				self:_syncSecondary()
@@ -1184,8 +1189,6 @@ function Window:Destroy()
 	setmetatable(self, nil)
 end
 
-return Window
-
 function Window:AddTab(config)
 	return self:CreateTab(config)
 end
@@ -1228,3 +1231,6 @@ end
 function Window:Search(query)
 	return self._searchIndex and self._searchIndex:Search(query) or {}
 end
+
+
+return Window
