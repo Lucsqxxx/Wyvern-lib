@@ -173,14 +173,13 @@ for token in phase2:
 # Real Lua syntax compile of dist (portable subset / Luau-compatible without +=)
 try:
     import lupa
-    lua = lupa.LuaRuntime()
-    ok, err = lua.eval('function(s) local c,e=load(s,"Wyvern","t"); return c~=nil, tostring(e) end')(src)
-    if ok:
+    _lua = lupa.LuaRuntime()
+    _compile_ok, _compile_err = _lua.eval('function(s) local c,e=load(s,"Wyvern","t"); return c~=nil, tostring(e) end')(src)
+    if _compile_ok:
         ok("dist compiles under Lua load()")
     else:
-        fail(f"dist Lua syntax: {err}")
+        fail(f"dist Lua syntax: {_compile_err}")
 except Exception as e:
-    # optional dependency
     print("SKIP: lupa compile check:", e)
 
 # Orphan leading-dot lines (return Module stripping corruption)
