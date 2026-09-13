@@ -900,6 +900,7 @@ function Window:CreateTab(config)
 	if self._destroyed then
 		return nil
 	end
+	config = config or {}
 	local tab = Tab.new(config, self, self._theme, self._search, self._input)
 	table.insert(self._tabs, tab)
 

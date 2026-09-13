@@ -335,8 +335,13 @@ end
 
 function Section:Destroy()
 	for _, comp in ipairs(self._components) do
-		comp:Destroy()
+		if comp and type(comp.Destroy) == "function" then
+			pcall(function()
+				comp:Destroy()
+			end)
+		end
 	end
+	self._components = {}
 	self._maid:Destroy()
 	setmetatable(self, nil)
 end

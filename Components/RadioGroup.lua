@@ -6,6 +6,18 @@ RadioGroup.__index = RadioGroup
 
 function RadioGroup.new(config, parent, theme)
 	config = config or {}
+	theme = theme or {
+		Get = function(_, key)
+			local d = {
+				Surface = Color3.fromRGB(30, 28, 40),
+				Border = Color3.fromRGB(60, 55, 75),
+				Text = Color3.fromRGB(230, 225, 240),
+				Accent = Color3.fromRGB(180, 120, 255),
+				TextSecondary = Color3.fromRGB(160, 155, 175),
+			}
+			return d[key] or Color3.new(1, 1, 1)
+		end,
+	}
 	local self = setmetatable(Component.new(config), RadioGroup)
 	self._theme = theme
 	self._options = config.Options or {}

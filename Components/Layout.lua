@@ -7,6 +7,17 @@ Layout.__index = Layout
 
 local function makeContainer(kind, config, parent, theme)
 	config = config or {}
+	theme = theme or {
+		Get = function(_, key)
+			local d = {
+				Surface = Color3.fromRGB(30, 28, 40),
+				SurfaceSecondary = Color3.fromRGB(36, 34, 48),
+				Border = Color3.fromRGB(60, 55, 75),
+				Text = Color3.fromRGB(230, 225, 240),
+			}
+			return d[key] or Color3.new(1, 1, 1)
+		end,
+	}
 	local self = setmetatable({
 		_maid = Maid.new(),
 		_theme = theme,

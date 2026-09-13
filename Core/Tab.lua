@@ -9,6 +9,7 @@ local Tab = {}
 Tab.__index = Tab
 
 function Tab.new(config, window, theme, search, inputManager)
+	config = config or {}
 	local self = setmetatable({
 		_maid = Maid.new(),
 		_window = window,
