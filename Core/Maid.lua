@@ -17,7 +17,7 @@ function Maid:Give(task)
 		return nil
 	end
 
-	self._id += 1
+	self._id = self._id + 1
 	local id = self._id
 	self._tasks[id] = task
 	return id

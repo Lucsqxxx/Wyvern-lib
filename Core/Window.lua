@@ -1145,14 +1145,6 @@ function Window:GetCurrentTab()
 	return self._currentTab
 end
 
-function Window:IsVisible()
-	return self._visible
-end
-
-function Window:IsMinimized()
-	return self._minimized
-end
-
 function Window:Destroy()
 	if self._destroyed then
 		return
@@ -1202,7 +1194,7 @@ function Window:Hide()
 end
 
 function Window:IsVisible()
-	return self._instance and self._instance.Visible
+	return self._visible == true
 end
 
 function Window:IsMinimized()
@@ -1214,14 +1206,14 @@ function Window:GetScale()
 end
 
 function Window:Center()
-	if not self._frame then return end
+	if not self._main then return end
 	local cam = workspace.CurrentCamera
 	local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
-	local size = self._frame.AbsoluteSize
-	self._frame.Position = UDim2.fromOffset(
-		math.floor((vp.X - size.X) / 2),
-		math.floor((vp.Y - size.Y) / 2)
-	)
+	local size = self._main.AbsoluteSize
+	local scale = self._scale or 1
+	local x = math.floor((vp.X - size.X) / 2)
+	local y = math.floor((vp.Y - size.Y) / 2)
+	self._main.Position = UDim2.fromOffset(math.max(0, x), math.max(0, y))
 end
 
 function Window:GetComponent(id)

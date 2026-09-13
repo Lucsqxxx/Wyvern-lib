@@ -169,6 +169,56 @@ for token in phase2:
     else:
         fail(f"phase2 missing {token}")
 
+
+# Real Lua syntax compile of dist (portable subset / Luau-compatible without +=)
+try:
+    import lupa
+    lua = lupa.LuaRuntime()
+    ok, err = lua.eval('function(s) local c,e=load(s,"Wyvern","t"); return c~=nil, tostring(e) end')(src)
+    if ok:
+        ok("dist compiles under Lua load()")
+    else:
+        fail(f"dist Lua syntax: {err}")
+except Exception as e:
+    # optional dependency
+    print("SKIP: lupa compile check:", e)
+
+# Orphan leading-dot lines (return Module stripping corruption)
+import re as _re
+orphan = 0
+for i, line in enumerate(src.splitlines(), 1):
+    s = line.strip()
+    if _re.match(r"^\.\w+", s):
+        fail(f"orphan leading-dot at dist line {i}: {s}")
+        orphan += 1
+if orphan == 0:
+    ok("no orphan leading-dot statements in dist")
+
+# Premature module-level return before Notification.Show / OpenContextMenu
+for mod, method in [("Core.Notification", "function Notification.Show"), ("Core.PopupManager", "OpenContextMenu")]:
+    a = src.find(f'__wyvern_define("{mod}"')
+    b = src.find("-- ===== END " + mod, a) if a>=0 else -1
+    if a < 0:
+        fail(f"missing module {mod}")
+        continue
+    body = src[a:b if b>0 else a+8000]
+    ret = body.rfind(f"return {mod.split('.')[-1]}")
+    meth = body.find(method)
+    if meth >= 0 and ret > meth:
+        ok(f"{mod} method before return")
+    elif meth < 0:
+        fail(f"{mod} missing {method}")
+    else:
+        fail(f"{mod} method after return")
+
+# Window method uniqueness
+for method in ["IsVisible", "IsMinimized"]:
+    c = src.count(f"function Window:{method}")
+    if c == 1:
+        ok(f"Window:{method} unique")
+    else:
+        fail(f"Window:{method} count={c}")
+
 print()
 print(f"Results: {len(passes)} PASS, {len(errors)} FAIL")
 sys.exit(1 if errors else 0)

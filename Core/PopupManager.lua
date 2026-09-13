@@ -15,7 +15,7 @@ function PopupManager.SetOverlay(overlay)
 end
 
 function PopupManager.GetOverlay()
-	._overlay
+	return PopupManager._overlay
 end
 
 function PopupManager.RegisterOpen(component)
@@ -45,7 +45,7 @@ function PopupManager.CloseAll()
 end
 
 function PopupManager.GetOpen()
-	._open
+	return PopupManager._open
 end
 
 function PopupManager._ensureListener()

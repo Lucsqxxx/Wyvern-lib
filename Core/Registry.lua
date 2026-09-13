@@ -15,7 +15,7 @@ function Registry:Register(id, component)
 		return false
 	end
 	if not self._map[id] then
-		self._count += 1
+		self._count = self._count + 1
 	end
 	self._map[id] = component
 	return true

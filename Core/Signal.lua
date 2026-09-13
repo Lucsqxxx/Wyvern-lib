@@ -14,7 +14,7 @@ end
 
 function Signal:Connect(callback)
 	assert(typeof(callback) == "function", "Signal:Connect expects a function")
-	self._id += 1
+	self._id = self._id + 1
 	local id = self._id
 	self._connections[id] = callback
 
